@@ -1,0 +1,33 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Spotlight
+.Spotlight-V100
+.Trashes
+
+# Build artifacts
+.build/
+build/
+DerivedData/
+*.xcodeproj
+*.xcworkspace
+*.swiftpm
+
+# 临时打包产物（DMG / .app 通过 GitHub Releases 发布，不入库）
+dist/
+
+# Swift Package Manager
+Package.resolved
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*~
+
+# 日志
+*.log
