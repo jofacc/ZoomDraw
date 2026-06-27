@@ -118,12 +118,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           • 鼠标拖拽：绘制
           • 1/2/3/4/5：红/黄/绿/蓝/白
           • [ / ]：调小/调大笔触
-          • R 矩形 · O 椭圆 · A 箭头 · P 自由
-          • Z 撤销  ·  C 清空当前画面
+          • A 自由 · B 矩形 · C 椭圆 · D 箭头
+          • Z 撤销  ·  X 清空当前画面
           • ESC 退出（画笔同步退出）
 
         独立画笔标注：
-          • 鼠标拖拽绘制；同样的 1-5 / R/O/A/P / Z / C / ESC
+          • 鼠标拖拽绘制；同样的 1-5 / A/B/C/D / Z / X / ESC
 
         提示：首次使用「放大」需在系统设置中授予「屏幕录制」权限。
         """
@@ -134,7 +134,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func showAbout() {
         let alert = NSAlert()
-        alert.messageText = "ZoomDraw  v1.0"
+        alert.messageText = "ZoomDraw  v2.1"
         alert.informativeText = "一个轻量的屏幕放大与画笔标注工具\n\n版权所有 tywinliu，保留所有权利。"
         alert.runModal()
     }

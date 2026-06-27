@@ -1,6 +1,6 @@
 # ZoomDraw
 
-![version](https://img.shields.io/badge/version-1.0-blue) ![platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey) ![license](https://img.shields.io/badge/license-MIT-green)
+![version](https://img.shields.io/badge/version-2.1-blue) ![platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey) ![license](https://img.shields.io/badge/license-MIT-green)
 
 一个轻量的 macOS 屏幕**放大 + 画笔标注**小工具。
 
@@ -31,9 +31,9 @@
 - `H` 或 `Tab`：隐藏 / 显示画笔层
 - 鼠标拖拽：绘制
 - 颜色：`1` 红 · `2` 黄 · `3` 绿 · `4` 蓝 · `5` 白
-- 工具：`P` 自由 · `R` 矩形 · `O` 椭圆 · `A` 箭头
+- 工具：`A` 自由 · `B` 矩形 · `C` 椭圆 · `D` 箭头
 - 笔触：`[` 减小 / `]` 增大
-- `Z` 撤销 · **`C` 清空当前画面**
+- `Z` 撤销 · **`X` 清空当前画面**
 - `ESC` 退出
 
 ### 独立画笔标注
@@ -62,7 +62,7 @@ bash build.sh
 
 产物位于 `dist/`：
 - `ZoomDraw.app` — 应用本体
-- `ZoomDraw-1.0.0.dmg` — 分发镜像
+- `ZoomDraw-2.1.0.dmg` — 分发镜像
 
 ---
 

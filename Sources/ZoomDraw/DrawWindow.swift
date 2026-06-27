@@ -85,7 +85,7 @@ final class DrawView: NSView {
         switch chars {
         case "z":
             if !strokes.isEmpty { strokes.removeLast() }
-        case "c":
+        case "x":
             strokes.removeAll()
             current = nil
         default:
@@ -103,7 +103,7 @@ final class DrawView: NSView {
     }
 
     private func drawToolbar(ctx: CGContext) {
-        let text = "工具: \(toolState.toolName)   笔触: \(Int(toolState.lineWidth))   1红 2黄 3绿 4蓝 5白   Z撤销 C清空 ESC退出" as NSString
+        let text = "工具: \(toolState.toolName)   笔触: \(Int(toolState.lineWidth))   1红 2黄 3绿 4蓝 5白   Z撤销 X清空 ESC退出" as NSString
         let attrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 13, weight: .medium),
             .foregroundColor: NSColor.white

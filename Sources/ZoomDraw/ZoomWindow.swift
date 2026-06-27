@@ -39,7 +39,7 @@ final class ZoomWindow: NSWindow {
 final class ZoomView: NSView {
     private let snapshot: CGImage
     private let screenFrame: NSRect
-    private var zoom: CGFloat = 2.0
+    private var zoom: CGFloat = 1.5
     private let minZoom: CGFloat = 1.0
     private let maxZoom: CGFloat = 8.0
     private var focusPoint: NSPoint = .zero // view 坐标系（0..bounds）
@@ -129,40 +129,183 @@ final class ZoomView: NSView {
     }
 
     private func drawHUD(ctx: CGContext) {
-        let stateText: String
-        if paused {
-            stateText = drawingEnabled
-                ? "已暂停 · 画笔: \(toolState.toolName) 笔触\(Int(toolState.lineWidth)) · H 隐藏画笔 · C 清空 · 点击继续"
-                : "已暂停 · 画笔已隐藏(H 显示) · 点击继续 · ESC 退出"
-        } else {
-            stateText = "缩放 \(String(format: "%.1f", zoom))x · 鼠标移动跟随焦点 · 滚轮调节 · 左键单击暂停 · ESC 退出"
-        }
-        let text = stateText as NSString
-        let attrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 13, weight: .medium),
-            .foregroundColor: NSColor.white
+        let font = NSFont.systemFont(ofSize: 13)
+        let bold = NSFont.systemFont(ofSize: 13, weight: .semibold)
+        let labelFont = NSFont.systemFont(ofSize: 12, weight: .semibold)
+        let labelColor = NSColor.white.withAlphaComponent(0.5)
+        let dim = NSColor.white.withAlphaComponent(0.72)
+        let white = NSColor.white
+        let accent = NSColor.systemTeal
+
+        let pad: CGFloat = 14
+        let labelW: CGFloat = 42
+        let rowH: CGFloat = 22
+        let gap: CGFloat = 12
+        let swatch: CGFloat = 18
+        let swatchGap: CGFloat = 12
+
+        let palette: [(NSColor, String)] = [
+            (.systemRed, "1"), (.systemYellow, "2"), (.systemGreen, "3"),
+            (.systemBlue, "4"), (.white, "5"),
         ]
-        let size = text.size(withAttributes: attrs)
-        let pad: CGFloat = 10
-        let bgRect = NSRect(x: 20, y: bounds.height - size.height - pad * 2 - 20,
-                            width: size.width + pad * 2 + (paused && drawingEnabled ? 24 : 0),
-                            height: size.height + pad * 2)
-        ctx.setFillColor(NSColor.black.withAlphaComponent(0.55).cgColor)
-        let path = CGPath(roundedRect: bgRect, cornerWidth: 8, cornerHeight: 8, transform: nil)
-        ctx.addPath(path); ctx.fillPath()
+        let shapes: [(String, String, DrawTool)] = [
+            ("A", "自由", .pen), ("B", "矩形", .rect),
+            ("C", "椭圆", .ellipse), ("D", "箭头", .arrow),
+        ]
 
-        var textX = bgRect.minX + pad
-        if paused && drawingEnabled {
-            // 当前颜色指示点
-            let dot = NSRect(x: bgRect.minX + pad, y: bgRect.minY + (bgRect.height - 12) / 2, width: 12, height: 12)
-            ctx.setFillColor(toolState.color.cgColor)
-            ctx.fillEllipse(in: dot)
-            textX = dot.maxX + 8
+        func tw(_ s: String, _ f: NSFont) -> CGFloat {
+            (s as NSString).size(withAttributes: [.font: f]).width
+        }
+        func drawText(_ s: String, _ f: NSFont, _ c: NSColor, _ p: NSPoint) {
+            (s as NSString).draw(at: p, withAttributes: [.font: f, .foregroundColor: c])
+        }
+        @discardableResult
+        func seg(_ s: String, _ f: NSFont, _ c: NSColor, _ x: CGFloat, _ y: CGFloat) -> CGFloat {
+            drawText(s, f, c, NSPoint(x: x, y: y))
+            return x + tw(s, f)
+        }
+        func contrast(on color: NSColor) -> NSColor {
+            guard let rgb = color.usingColorSpace(.sRGB) else { return .white }
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            rgb.getRed(&r, green: &g, blue: &b, alpha: &a)
+            return (0.299 * r + 0.587 * g + 0.114 * b) > 0.6 ? NSColor.black : NSColor.white
         }
 
-        NSGraphicsContext.saveGraphicsState()
-        text.draw(at: NSPoint(x: textX, y: bgRect.minY + pad), withAttributes: attrs)
-        NSGraphicsContext.restoreGraphicsState()
+        // ---- 测量各行内容宽度 ----
+        var shapeW: CGFloat = 0
+        for (k, n, _) in shapes { shapeW += tw(k, bold) + 6 + tw(n, font) + 22 }
+        let brushW = tw("[", bold) + 6 + tw("减细", font) + 22 + tw("]", bold) + 6 + tw("加粗", font) + 22
+        var actionW: CGFloat = 0
+        for (k, n) in [("H", "显隐"), ("X", "清空"), ("Z", "撤销")] {
+            actionW += tw(k, bold) + 6 + tw(n, font) + 22
+        }
+        let colorW = CGFloat(palette.count) * (swatch + swatchGap)
+        let contentW = max(max(shapeW, brushW), max(actionW, colorW))
+        let panelW = labelW + contentW + pad * 2
+
+        let rows = 6
+        let panelH = pad * 2 + CGFloat(rows) * rowH + gap
+        let bgRect = NSRect(x: 20, y: bounds.height - panelH - 20, width: panelW, height: panelH)
+
+        ctx.saveGState()
+        ctx.setFillColor(NSColor.black.withAlphaComponent(0.62).cgColor)
+        ctx.addPath(CGPath(roundedRect: bgRect, cornerWidth: 10, cornerHeight: 10, transform: nil))
+        ctx.fillPath()
+        ctx.restoreGState()
+
+        let labelX = bgRect.minX + pad
+        let contentX = labelX + labelW
+        func baseY(_ rowTop: CGFloat) -> CGFloat { rowTop - (rowH + 13) / 2 }
+
+        let r0 = bgRect.maxY - pad   // 头部
+        let r1 = r0 - rowH - gap     // 形状
+        let r2 = r1 - rowH           // 颜色
+        let r3 = r2 - rowH           // 笔触
+        let r4 = r3 - rowH           // 操作
+        let r5 = r4 - rowH           // 底部提示
+
+        // ---- 头部：当前画笔状态（颜色随选择动态更新）----
+        let hy = baseY(r0)
+        if paused {
+            if drawingEnabled {
+                let dot = NSRect(x: labelX, y: hy + (13 - 12) / 2, width: 12, height: 12)
+                ctx.setFillColor(toolState.color.cgColor)
+                ctx.fillEllipse(in: dot)
+                var x = dot.maxX + 8
+                x = seg(toolState.toolShortName, bold, white, x, hy) + 10
+                x = seg("·", font, labelColor, x, hy) + 10
+                x = seg(toolState.colorName, bold, toolState.color, x, hy) + 10
+                x = seg("·", font, labelColor, x, hy) + 10
+                _ = seg("笔触 \(Int(toolState.lineWidth))", font, white, x, hy)
+            } else {
+                var x = seg("画笔已隐藏", font, labelColor, labelX, hy) + 10
+                x = seg("·", font, labelColor, x, hy) + 10
+                _ = seg("按 H 显示", font, white, x, hy)
+            }
+        } else {
+            _ = seg("缩放 \(String(format: "%.1f", zoom))x", bold, white, labelX, hy)
+        }
+
+        // ---- 分隔线 ----
+        let divY = r0 - rowH - gap / 2
+        ctx.saveGState()
+        ctx.setStrokeColor(NSColor.white.withAlphaComponent(0.15).cgColor)
+        ctx.setLineWidth(1)
+        ctx.move(to: NSPoint(x: labelX, y: divY))
+        ctx.addLine(to: NSPoint(x: bgRect.maxX - pad, y: divY))
+        ctx.strokePath()
+        ctx.restoreGState()
+
+        // ---- 形状行（高亮当前选中）----
+        let sy = baseY(r1)
+        drawText("形状", labelFont, labelColor, NSPoint(x: labelX, y: sy))
+        var sx = contentX
+        for (k, n, t) in shapes {
+            let segW = tw(k, bold) + 6 + tw(n, font)
+            if t == toolState.tool {
+                let hl = NSRect(x: sx - 7, y: r1 - rowH + 3, width: segW + 14, height: rowH - 6)
+                ctx.saveGState()
+                ctx.setFillColor(NSColor.white.withAlphaComponent(0.16).cgColor)
+                ctx.addPath(CGPath(roundedRect: hl, cornerWidth: 6, cornerHeight: 6, transform: nil))
+                ctx.fillPath()
+                ctx.restoreGState()
+                sx = seg(k, bold, accent, sx, sy) + 6
+                sx = seg(n, bold, white, sx, sy) + 22
+            } else {
+                sx = seg(k, bold, labelColor, sx, sy) + 6
+                sx = seg(n, font, dim, sx, sy) + 22
+            }
+        }
+
+        // ---- 颜色行（色块 + 数字，当前色加白圈）----
+        let cy = baseY(r2)
+        drawText("颜色", labelFont, labelColor, NSPoint(x: labelX, y: cy))
+        var cx = contentX
+        for (i, (col, digit)) in palette.enumerated() {
+            let swTop = r2 - (rowH + swatch) / 2
+            let rect = NSRect(x: cx, y: swTop, width: swatch, height: swatch)
+            ctx.saveGState()
+            ctx.setFillColor(col.cgColor)
+            ctx.addPath(CGPath(roundedRect: rect, cornerWidth: 4, cornerHeight: 4, transform: nil))
+            ctx.fillPath()
+            if i == toolState.colorIndex {
+                ctx.setStrokeColor(NSColor.white.cgColor)
+                ctx.setLineWidth(2)
+                let ring = rect.insetBy(dx: -2, dy: -2)
+                ctx.addPath(CGPath(roundedRect: ring, cornerWidth: 5, cornerHeight: 5, transform: nil))
+                ctx.strokePath()
+            }
+            ctx.restoreGState()
+            let dw = tw(digit, bold)
+            drawText(digit, bold, contrast(on: col),
+                     NSPoint(x: cx + (swatch - dw) / 2, y: swTop + (swatch - 13) / 2))
+            cx += swatch + swatchGap
+        }
+
+        // ---- 笔触行 ----
+        let by = baseY(r3)
+        drawText("笔触", labelFont, labelColor, NSPoint(x: labelX, y: by))
+        var bx = contentX
+        bx = seg("[", bold, labelColor, bx, by) + 6
+        bx = seg("减细", font, dim, bx, by) + 22
+        bx = seg("]", bold, labelColor, bx, by) + 6
+        _ = seg("加粗", font, dim, bx, by)
+
+        // ---- 操作行 ----
+        let ay = baseY(r4)
+        drawText("操作", labelFont, labelColor, NSPoint(x: labelX, y: ay))
+        var ax = contentX
+        ax = seg("H", bold, labelColor, ax, ay) + 6
+        ax = seg("显隐", font, dim, ax, ay) + 22
+        ax = seg("X", bold, labelColor, ax, ay) + 6
+        ax = seg("清空", font, dim, ax, ay) + 22
+        ax = seg("Z", bold, labelColor, ax, ay) + 6
+        _ = seg("撤销", font, dim, ax, ay)
+
+        // ---- 底部提示 ----
+        let fy = baseY(r5)
+        let foot = paused ? "单击继续 · ESC 退出" : "滚轮 / +/- 调节 · 单击暂停绘制 · ESC 退出"
+        drawText(foot, font, labelColor, NSPoint(x: labelX, y: fy))
     }
 
     // MARK: - 鼠标
@@ -245,7 +388,7 @@ final class ZoomView: NSView {
                 window?.invalidateCursorRects(for: self)
                 needsDisplay = true
                 return
-            case "c":
+            case "x":
                 strokes.removeAll()
                 current = nil
                 needsDisplay = true

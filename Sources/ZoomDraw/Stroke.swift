@@ -63,21 +63,27 @@ enum StrokeRenderer {
 /// 工具状态容器 —— 让 ZoomView 与 DrawView 共享同一份"当前工具/颜色/笔触"
 final class DrawToolState {
     var tool: DrawTool = .pen
-    var color: NSColor = .systemRed
+    private(set) var colorIndex: Int = 0
     var lineWidth: CGFloat = 4.0
+
+    private static let palette: [NSColor] = [.systemRed, .systemYellow, .systemGreen, .systemBlue, .white]
+    private static let names: [String] = ["红", "黄", "绿", "蓝", "白"]
+
+    var color: NSColor { Self.palette[colorIndex] }
+    var colorName: String { Self.names[colorIndex] }
 
     /// 处理快捷键，返回是否已消费
     func handleKey(chars: String) -> Bool {
         switch chars {
-        case "1": color = .systemRed
-        case "2": color = .systemYellow
-        case "3": color = .systemGreen
-        case "4": color = .systemBlue
-        case "5": color = .white
-        case "p": tool = .pen
-        case "r": tool = .rect
-        case "o": tool = .ellipse
-        case "a": tool = .arrow
+        case "1": colorIndex = 0
+        case "2": colorIndex = 1
+        case "3": colorIndex = 2
+        case "4": colorIndex = 3
+        case "5": colorIndex = 4
+        case "a": tool = .pen
+        case "b": tool = .rect
+        case "c": tool = .ellipse
+        case "d": tool = .arrow
         case "[": lineWidth = max(1, lineWidth - 1)
         case "]": lineWidth = min(40, lineWidth + 1)
         default: return false
@@ -85,12 +91,23 @@ final class DrawToolState {
         return true
     }
 
+    /// 带按键提示的名称（用于独立画笔工具栏）
     var toolName: String {
         switch tool {
-        case .pen: return "自由(P)"
-        case .rect: return "矩形(R)"
-        case .ellipse: return "椭圆(O)"
-        case .arrow: return "箭头(A)"
+        case .pen: return "自由(A)"
+        case .rect: return "矩形(B)"
+        case .ellipse: return "椭圆(C)"
+        case .arrow: return "箭头(D)"
+        }
+    }
+
+    /// 不带按键提示的名称（用于放大 HUD 头部）
+    var toolShortName: String {
+        switch tool {
+        case .pen: return "自由画笔"
+        case .rect: return "矩形"
+        case .ellipse: return "椭圆"
+        case .arrow: return "箭头"
         }
     }
 }
