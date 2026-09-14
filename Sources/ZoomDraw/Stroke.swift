@@ -1,15 +1,19 @@
 import AppKit
 import CoreGraphics
 
-enum DrawTool { case pen, rect, ellipse, arrow }
+enum DrawTool { case pen, rect, ellipse, arrow, mosaic, text }
 
 struct Stroke {
     var tool: DrawTool
     var color: NSColor
     var width: CGFloat
-    var points: [NSPoint]   // pen 用
-    var start: NSPoint      // rect/ellipse/arrow 用
+    var points: [NSPoint]   // pen / mosaic 用
+    var start: NSPoint      // rect/ellipse/arrow/text 用
     var end: NSPoint
+    var text: String = ""   // text 用
+
+    /// 文字工具的字号（随笔触联动）
+    var fontSize: CGFloat { max(13, width * 4.5) }
 }
 
 enum StrokeRenderer {
@@ -41,8 +45,36 @@ enum StrokeRenderer {
             ctx.strokeEllipse(in: r)
         case .arrow:
             drawArrow(from: s.start, to: s.end, width: s.width, ctx: ctx)
+        case .mosaic:
+            break   // 由持有原图的视图单独渲染
+        case .text:
+            drawText(s)
         }
         ctx.restoreGState()
+    }
+
+    /// 文字渲染（需要当前存在 NSGraphicsContext）
+    static func drawText(_ s: Stroke) {
+        guard !s.text.isEmpty else { return }
+        let attrs = textAttributes(color: s.color, size: s.fontSize)
+        (s.text as NSString).draw(at: s.start, withAttributes: attrs)
+    }
+
+    static func textAttributes(color: NSColor, size: CGFloat) -> [NSAttributedString.Key: Any] {
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor.black.withAlphaComponent(0.55)
+        shadow.shadowBlurRadius = 2
+        shadow.shadowOffset = NSSize(width: 0, height: -1)
+        return [
+            .font: NSFont.systemFont(ofSize: size, weight: .semibold),
+            .foregroundColor: color,
+            .shadow: shadow
+        ]
+    }
+
+    static func textSize(_ s: Stroke) -> NSSize {
+        let str = s.text.isEmpty ? " " : s.text
+        return (str as NSString).size(withAttributes: textAttributes(color: s.color, size: s.fontSize))
     }
 
     private static func drawArrow(from p1: NSPoint, to p2: NSPoint, width: CGFloat, ctx: CGContext) {
@@ -66,11 +98,15 @@ final class DrawToolState {
     private(set) var colorIndex: Int = 0
     var lineWidth: CGFloat = 4.0
 
-    private static let palette: [NSColor] = [.systemRed, .systemYellow, .systemGreen, .systemBlue, .white]
-    private static let names: [String] = ["红", "黄", "绿", "蓝", "白"]
+    static let palette: [NSColor] = [.systemRed, .systemYellow, .systemGreen, .systemBlue, .white, .black]
+    private static let names: [String] = ["红", "黄", "绿", "蓝", "白", "黑"]
 
     var color: NSColor { Self.palette[colorIndex] }
     var colorName: String { Self.names[colorIndex] }
+
+    func setColorIndex(_ i: Int) {
+        colorIndex = max(0, min(Self.palette.count - 1, i))
+    }
 
     /// 处理快捷键，返回是否已消费
     func handleKey(chars: String) -> Bool {
@@ -98,6 +134,8 @@ final class DrawToolState {
         case .rect: return "矩形(B)"
         case .ellipse: return "椭圆(C)"
         case .arrow: return "箭头(D)"
+        case .mosaic: return "马赛克(M)"
+        case .text: return "文字(T)"
         }
     }
 
@@ -108,6 +146,8 @@ final class DrawToolState {
         case .rect: return "矩形"
         case .ellipse: return "椭圆"
         case .arrow: return "箭头"
+        case .mosaic: return "马赛克"
+        case .text: return "文字"
         }
     }
 }

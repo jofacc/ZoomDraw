@@ -3,7 +3,7 @@ set -euo pipefail
 
 APP_NAME="ZoomDraw"
 BUNDLE_ID="com.zoomdraw.app"
-VERSION="2.1.0"
+VERSION="2.5.0"
 ARCH=$(uname -m)
 
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -25,6 +25,8 @@ mkdir -p "$DIST_DIR"
 EXEC_PATH="$DIST_DIR/$APP_NAME"
 xcrun swiftc -O \
     -framework AppKit -framework Carbon -framework ScreenCaptureKit \
+    -framework AVFoundation -framework CoreMedia -framework ImageIO \
+    -framework QuickLookThumbnailing \
     -o "$EXEC_PATH" \
     Sources/ZoomDraw/*.swift
 

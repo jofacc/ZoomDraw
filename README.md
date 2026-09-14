@@ -1,13 +1,16 @@
 # ZoomDraw
 
-![version](https://img.shields.io/badge/version-2.1-blue) ![platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey) ![license](https://img.shields.io/badge/license-MIT-green)
+![version](https://img.shields.io/badge/version-2.5.0-blue) ![platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey) ![license](https://img.shields.io/badge/license-MIT-green)
 
-一个轻量的 macOS 屏幕**放大 + 画笔标注**小工具。
+一个轻量的 macOS 屏幕**放大 + 截图 + 录屏 + 标注 + 文件暂存**小工具。
 
 - 菜单栏常驻，不占 Dock
 - 全局快捷键，可在偏好设置中自定义
 - 放大状态下左键单击暂停，自动启用画笔叠加标注
-- 原生 Swift + AppKit，单文件二进制 ~250 KB
+- 微信/企业微信式截图：窗口自动识别、放大镜取色、标注工具栏、一键复制/保存
+- 区域录屏：暂停/继续、实时计时，导出 **MP4** 或 **GIF**
+- 暂存板：跨应用搬运文件的中转站，拖入拖出、拉框多选、贴边自动收起
+- 原生 Swift + AppKit，单文件二进制 ~600 KB
 - 支持 macOS 13+，已在 macOS 15 上测试
 
 ---
@@ -18,6 +21,9 @@
 |---|---|
 | 开/关 **放大模式** | `⌥ A` |
 | 开/关 **画笔标注** | `⌥ D` |
+| **截图 / 录屏** | `⌥ S` |
+| 开/关 **暂存板** | `⌥ V` |
+| **剪贴板内容存入暂存板** | `⌥ ⇧ V` |
 
 > 在菜单栏 → **偏好设置…**（`⌘,`）中自由修改。
 
@@ -36,10 +42,76 @@
 - `Z` 撤销 · **`X` 清空当前画面**
 - `ESC` 退出
 
+### 截图
+冻结全屏画面后进入选区模式：
+
+- **拖动**框选任意区域；**单击**自动选中鼠标下最上层的可见窗口
+- 选区阶段显示**放大镜**：像素级预览 + 坐标 + HEX 取色
+- 选区确定后：拖动八向控制点微调，拖动选区内部整体移动
+- **双击选区内部**：立即完成并复制到剪贴板
+- 工具栏标注：
+
+| 工具 | 键 |
+|---|---|
+| 矩形 | `B` |
+| 椭圆 | `C` |
+| 箭头 | `D` |
+| 画笔 | `A` |
+| 马赛克 | `M` |
+| 文字 | `T` |
+
+- 颜色 `1`–`6`（红/黄/绿/蓝/白/黑）；笔触 `[` / `]`
+- `⌘Z` 撤销 · `⌘A` 全屏 · 右键返回重新框选 · `ESC` 退出
+- **双击选区 / `⏎` / `⌘C` 完成并复制到剪贴板** · `⌘S` 保存为 PNG
+- 文字输入：`⏎` 提交，`⇧⏎` 换行，`ESC` 取消
+
+### 录屏
+选区确认后，点击工具栏的**红色圆点**（或按 `⌘R`）开始录制当前选区：
+
+- 录制区域外显示**红色虚线边框**，下方悬浮控制条
+- 控制条：`暂停/继续`（`Space`）· `结束并导出`（`⏎`）· `取消`（`ESC`），可拖动位置
+- 菜单栏图标变为红点，菜单中也可随时「结束并导出 / 取消录屏」
+- 录屏中再次按 `⌥S` = 立即结束并导出
+- ZoomDraw 自身的边框与控制条**不会被录进画面**
+- 暂停时长不计入视频时间轴
+- 导出时在保存面板的「文件格式」中选择：
+
+| 格式 | 说明 |
+|---|---|
+| **MP4** | H.264 / 30 fps，原始 Retina 像素 |
+| **GIF** | 自动降采样（≤900 px 宽、≤12 fps），循环播放 |
+
+### 暂存板
+在不同应用之间搬文件不用再「一手按住不能松」——先丢进暂存板，切好目标应用再拖出去。
+
+- **拖入**：文件、文本、图片、网址都能接收
+  - 文本 → `.txt`、图片 → `.png`、网址 → `.webloc`，自动落盘成真实文件
+- **拖出**：从暂存板拖到任意应用（Finder、聊天窗口、上传框…），按「复制」语义，不会移动原文件
+- **单击即可直接拖拽**：窗口未激活时第一次点击也直接作用于文件，不需要先点一下窗口
+- **拉框多选**：空白处按住拖动框选，按 `⌘` / `⇧` 追加选择
+- **拖动文件时自动浮现**（Yoink 风格），松手后若未使用会自动收起；可在偏好设置中关闭
+- **贴边自动收起**：把窗口拖到屏幕左 / 右 / 上边缘，**松手即自动缩到边外**，只留一条彩色细条。点击细条（或按 `⌥V`）拉回；拖着文件靠近细条时会自动探出来接收
+- **召唤后自动收回**：停靠状态下召唤出来，若鼠标离开板子且超过设定秒数（默认 3 秒）会自动缩回去；鼠标停在板子上不会收。可在偏好设置中改为 1/2/3/5/10 秒或关闭
+- 停靠中按 `⌥V`：展开 → 再按一次立即收回
+- 缩略图使用系统 QuickLook 预览，图片/PDF 能直接看到内容
+
+| 操作 | 方式 |
+|---|---|
+| 打开 | 双击 / `⏎` |
+| 多选 | `⌘` 点选 · 空白处拉框 · `⌘A` 全选 |
+| 移除选中 | `Delete` |
+| 复制到剪贴板 | `⌘C` |
+| 从剪贴板存入 | `⌥⇧V`（全局）· `⌘V`（窗口内） |
+| 在 Finder 中显示 | 右键菜单 |
+| 清理失效条目 / 清空 | 右键菜单 · 标题栏垃圾桶 |
+
+- 拖动标题栏移动窗口，右下角可调整大小，位置与尺寸会被记住
+- 内容持久保存，重启应用后仍在（源文件被移动/删除的条目会标橙并可一键清理）
+
 ### 独立画笔标注
 - 操作同上；`ESC` 退出
 
-> ⚠️ 首次使用「放大」时，macOS 会请求**屏幕录制**权限：
+> ⚠️ 首次使用「放大 / 截图 / 录屏」时，macOS 会请求**屏幕录制**权限：
 > 系统设置 → 隐私与安全性 → 屏幕录制 → 勾选 ZoomDraw → 重新启动应用。
 
 ---
@@ -62,7 +134,7 @@ bash build.sh
 
 产物位于 `dist/`：
 - `ZoomDraw.app` — 应用本体
-- `ZoomDraw-2.1.0.dmg` — 分发镜像
+- `ZoomDraw-2.5.0.dmg` — 分发镜像
 
 ---
 
@@ -71,16 +143,25 @@ bash build.sh
 ```
 .
 ├── Sources/ZoomDraw/
-│   ├── main.swift               # 入口
-│   ├── AppDelegate.swift        # 菜单栏与协调器
-│   ├── HotkeyManager.swift      # Carbon 全局快捷键
-│   ├── HotkeyConfig.swift       # 快捷键持久化
-│   ├── PreferencesWindow.swift  # 偏好设置 UI
-│   ├── ZoomController.swift     # 屏幕捕获（ScreenCaptureKit）
-│   ├── ZoomWindow.swift         # 全屏放大 + 画笔叠加
+│   ├── main.swift                  # 入口
+│   ├── AppDelegate.swift           # 菜单栏与协调器
+│   ├── HotkeyManager.swift         # Carbon 全局快捷键
+│   ├── HotkeyConfig.swift          # 快捷键持久化
+│   ├── PreferencesWindow.swift     # 偏好设置 UI
+│   ├── ScreenCapture.swift         # 共享屏幕捕获 & 窗口探测
+│   ├── ZoomController.swift        # 屏幕放大控制
+│   ├── ZoomWindow.swift            # 全屏放大 + 画笔叠加
+│   ├── ScreenshotController.swift  # 截图流程、剪贴板与保存
+│   ├── ScreenshotWindow.swift      # 截图选区 + 标注画布
+│   ├── ScreenshotToolbar.swift     # 截图标注工具栏
+│   ├── ScreenRecorder.swift        # 区域录屏采集与 H.264 编码
+│   ├── RecordingController.swift   # 录屏指示 UI + MP4/GIF 导出
+│   ├── ShelfStore.swift            # 暂存板数据与持久化
+│   ├── ShelfWindow.swift           # 暂存板浮窗 + 拖入拖出网格
+│   ├── ShelfController.swift       # 暂存板显隐与拖拽自动唤出
 │   ├── DrawController.swift
-│   ├── DrawWindow.swift         # 透明画布
-│   └── Stroke.swift             # 共享笔迹模型与渲染器
+│   ├── DrawWindow.swift            # 透明画布
+│   └── Stroke.swift                # 共享笔迹模型与渲染器
 ├── Resources/Info.plist
 ├── Package.swift                # SwiftPM（备用）
 ├── build.sh                     # 一键打包 .app + .dmg

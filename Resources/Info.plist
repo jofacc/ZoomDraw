@@ -9,9 +9,9 @@
     <key>CFBundleIdentifier</key>
     <string>com.zoomdraw.app</string>
     <key>CFBundleVersion</key>
-    <string>3</string>
+    <string>11</string>
     <key>CFBundleShortVersionString</key>
-    <string>2.1.0</string>
+    <string>2.5.0</string>
     <key>CFBundleExecutable</key>
     <string>ZoomDraw</string>
     <key>CFBundlePackageType</key>
@@ -27,6 +27,6 @@
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
     <key>NSScreenCaptureUsageDescription</key>
-    <string>ZoomDraw 需要屏幕录制权限来捕获屏幕内容用于放大显示。</string>
+    <string>ZoomDraw 需要屏幕录制权限来捕获屏幕内容，用于放大显示、截图与录屏。</string>
 </dict>
 </plist>

@@ -1,13 +1,15 @@
 import AppKit
 
-/// 偏好设置窗口：录制全局快捷键
+/// 偏好设置窗口：按模块分标签页（快捷键 / 暂存板）
 final class PreferencesWindowController: NSWindowController {
     static let shared = PreferencesWindowController()
 
     private var rows: [HotkeyAction: HotkeyRecorderField] = [:]
 
+    private static let winSize = NSSize(width: 480, height: 380)
+
     private convenience init() {
-        let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 460, height: 220),
+        let win = NSWindow(contentRect: NSRect(origin: .zero, size: PreferencesWindowController.winSize),
                            styleMask: [.titled, .closable],
                            backing: .buffered, defer: false)
         win.title = "ZoomDraw 偏好设置"
@@ -26,36 +28,49 @@ final class PreferencesWindowController: NSWindowController {
 
     private func buildUI() {
         guard let content = window?.contentView else { return }
-        let actions = HotkeyAction.allCases
-        let rowH: CGFloat = 36
-        let topPad: CGFloat = 24
-        let leftPad: CGFloat = 24
 
-        // 标题
-        let title = NSTextField(labelWithString: "全局快捷键")
-        title.font = NSFont.systemFont(ofSize: 14, weight: .semibold)
-        title.frame = NSRect(x: leftPad, y: content.bounds.height - topPad - 20, width: 200, height: 20)
-        title.autoresizingMask = [.minYMargin]
-        content.addSubview(title)
+        let tabs = NSTabView(frame: content.bounds.insetBy(dx: 12, dy: 12))
+        tabs.autoresizingMask = [.width, .height]
+
+        let hotkeyItem = NSTabViewItem(identifier: "hotkeys")
+        hotkeyItem.label = "快捷键"
+        hotkeyItem.view = buildHotkeyPane(size: tabs.contentRect.size)
+        tabs.addTabViewItem(hotkeyItem)
+
+        let shelfItem = NSTabViewItem(identifier: "shelf")
+        shelfItem.label = "暂存板"
+        shelfItem.view = buildShelfPane(size: tabs.contentRect.size)
+        tabs.addTabViewItem(shelfItem)
+
+        content.addSubview(tabs)
+    }
+
+    // MARK: - 快捷键面板
+    private func buildHotkeyPane(size: NSSize) -> NSView {
+        let pane = NSView(frame: NSRect(origin: .zero, size: size))
+        pane.autoresizingMask = [.width, .height]
+
+        let leftPad: CGFloat = 20
+        let rowH: CGFloat = 34
 
         let hint = NSTextField(labelWithString: "点击右侧输入框，按下你想要的组合键")
         hint.font = NSFont.systemFont(ofSize: 11)
         hint.textColor = .secondaryLabelColor
-        hint.frame = NSRect(x: leftPad, y: title.frame.minY - 18, width: 360, height: 16)
+        hint.frame = NSRect(x: leftPad, y: size.height - 30, width: 360, height: 16)
         hint.autoresizingMask = [.minYMargin]
-        content.addSubview(hint)
+        pane.addSubview(hint)
 
-        // 行
-        for (i, action) in actions.enumerated() {
-            let yTop = hint.frame.minY - 24 - CGFloat(i) * rowH
+        for (i, action) in HotkeyAction.allCases.enumerated() {
+            let yTop = hint.frame.minY - 28 - CGFloat(i) * rowH
 
             let label = NSTextField(labelWithString: action.title)
             label.font = NSFont.systemFont(ofSize: 13)
-            label.frame = NSRect(x: leftPad, y: yTop, width: 120, height: 22)
+            label.frame = NSRect(x: leftPad, y: yTop, width: 150, height: 22)
             label.autoresizingMask = [.minYMargin]
-            content.addSubview(label)
+            pane.addSubview(label)
 
-            let recorder = HotkeyRecorderField(frame: NSRect(x: leftPad + 130, y: yTop - 4, width: 200, height: 28))
+            let recorder = HotkeyRecorderField(frame: NSRect(x: leftPad + 160, y: yTop - 4,
+                                                             width: 190, height: 28))
             recorder.action = action
             recorder.onChange = { [weak self] new in
                 guard let self = self else { return }
@@ -71,16 +86,95 @@ final class PreferencesWindowController: NSWindowController {
             }
             recorder.binding = HotkeyConfig.shared.binding(for: action)
             recorder.autoresizingMask = [.minYMargin]
-            content.addSubview(recorder)
+            pane.addSubview(recorder)
             rows[action] = recorder
         }
 
-        // 重置按钮
-        let reset = NSButton(title: "恢复默认", target: self, action: #selector(resetAll))
+        let reset = NSButton(title: "恢复默认快捷键", target: self, action: #selector(resetAll))
         reset.bezelStyle = .rounded
-        reset.frame = NSRect(x: content.bounds.width - 24 - 100, y: 16, width: 100, height: 28)
+        reset.frame = NSRect(x: size.width - 20 - 140, y: 14, width: 140, height: 28)
         reset.autoresizingMask = [.minXMargin, .maxYMargin]
-        content.addSubview(reset)
+        pane.addSubview(reset)
+
+        return pane
+    }
+
+    // MARK: - 暂存板面板
+    private func buildShelfPane(size: NSSize) -> NSView {
+        let pane = NSView(frame: NSRect(origin: .zero, size: size))
+        pane.autoresizingMask = [.width, .height]
+
+        let leftPad: CGFloat = 20
+        var y = size.height - 34
+
+        func addCheckbox(_ title: String, _ hint: String, on: Bool, action: Selector) {
+            let cb = NSButton(checkboxWithTitle: title, target: self, action: action)
+            cb.state = on ? .on : .off
+            cb.frame = NSRect(x: leftPad, y: y, width: size.width - leftPad * 2, height: 20)
+            cb.autoresizingMask = [.minYMargin]
+            pane.addSubview(cb)
+
+            let h = NSTextField(labelWithString: hint)
+            h.font = NSFont.systemFont(ofSize: 11)
+            h.textColor = .secondaryLabelColor
+            h.frame = NSRect(x: leftPad + 18, y: y - 18, width: size.width - leftPad * 2 - 18, height: 16)
+            h.autoresizingMask = [.minYMargin]
+            pane.addSubview(h)
+
+            y -= 48
+        }
+
+        addCheckbox("拖动文件时自动浮现",
+                    "关闭后仅通过快捷键或菜单栏唤出",
+                    on: ShelfController.autoShowOnDrag,
+                    action: #selector(toggleAutoShow(_:)))
+
+        addCheckbox("拖到屏幕边缘时自动收起",
+                    "收起后点击露出的细条即可拉回",
+                    on: ShelfController.edgeHideEnabled,
+                    action: #selector(toggleEdgeHide(_:)))
+
+        // 自动收回延时
+        let label = NSTextField(labelWithString: "召唤后自动收回")
+        label.font = NSFont.systemFont(ofSize: 13)
+        label.frame = NSRect(x: leftPad, y: y, width: 130, height: 22)
+        label.autoresizingMask = [.minYMargin]
+        pane.addSubview(label)
+
+        let popup = NSPopUpButton(frame: NSRect(x: leftPad + 140, y: y - 4, width: 140, height: 26),
+                                  pullsDown: false)
+        for sec in ShelfController.autoCollapseOptions {
+            let title = sec <= 0 ? "不自动收回" : "\(Int(sec)) 秒后"
+            popup.addItem(withTitle: title)
+            popup.lastItem?.tag = Int(sec)
+        }
+        popup.selectItem(withTag: Int(ShelfController.autoCollapseDelay))
+        popup.target = self
+        popup.action = #selector(changeAutoCollapse(_:))
+        popup.autoresizingMask = [.minYMargin]
+        pane.addSubview(popup)
+
+        let delayHint = NSTextField(labelWithString: "仅在停靠于屏幕边缘时生效；鼠标停留在板子上不会收回")
+        delayHint.font = NSFont.systemFont(ofSize: 11)
+        delayHint.textColor = .secondaryLabelColor
+        delayHint.frame = NSRect(x: leftPad, y: y - 24, width: size.width - leftPad * 2, height: 16)
+        delayHint.autoresizingMask = [.minYMargin]
+        pane.addSubview(delayHint)
+
+        return pane
+    }
+
+    // MARK: - 动作
+    @objc private func toggleAutoShow(_ sender: NSButton) {
+        ShelfController.autoShowOnDrag = (sender.state == .on)
+    }
+
+    @objc private func toggleEdgeHide(_ sender: NSButton) {
+        ShelfController.edgeHideEnabled = (sender.state == .on)
+    }
+
+    @objc private func changeAutoCollapse(_ sender: NSPopUpButton) {
+        ShelfController.autoCollapseDelay = TimeInterval(sender.selectedTag())
     }
 
     private func findConflict(new: HotkeyBinding, except: HotkeyAction) -> HotkeyAction? {

@@ -39,11 +39,17 @@ struct HotkeyBinding: Codable, Equatable {
 enum HotkeyAction: String, CaseIterable {
     case zoom = "hotkey.zoom"
     case draw = "hotkey.draw"
+    case shot = "hotkey.shot"
+    case shelf = "hotkey.shelf"
+    case shelfPaste = "hotkey.shelfPaste"
 
     var title: String {
         switch self {
         case .zoom: return "放大模式"
         case .draw: return "画笔标注"
+        case .shot: return "截图 / 录屏"
+        case .shelf: return "暂存板"
+        case .shelfPaste: return "剪贴板存入暂存板"
         }
     }
 
@@ -53,6 +59,13 @@ enum HotkeyAction: String, CaseIterable {
             return HotkeyBinding(keyCode: 0, modifiers: NSEvent.ModifierFlags.option.rawValue)
         case .draw: // Option+D
             return HotkeyBinding(keyCode: 2, modifiers: NSEvent.ModifierFlags.option.rawValue)
+        case .shot: // Option+S
+            return HotkeyBinding(keyCode: 1, modifiers: NSEvent.ModifierFlags.option.rawValue)
+        case .shelf: // Option+V
+            return HotkeyBinding(keyCode: 9, modifiers: NSEvent.ModifierFlags.option.rawValue)
+        case .shelfPaste: // Option+Shift+V
+            return HotkeyBinding(keyCode: 9,
+                                 modifiers: NSEvent.ModifierFlags([.option, .shift]).rawValue)
         }
     }
 }
