@@ -2,31 +2,31 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleDisplayName</key>
-    <string>ZoomDraw</string>
-    <key>CFBundleName</key>
-    <string>ZoomDraw</string>
-    <key>CFBundleIdentifier</key>
-    <string>com.zoomdraw.app</string>
-    <key>CFBundleVersion</key>
-    <string>11</string>
-    <key>CFBundleShortVersionString</key>
-    <string>2.5.0</string>
-    <key>CFBundleExecutable</key>
-    <string>ZoomDraw</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>13.0</string>
-    <key>LSUIElement</key>
-    <true/>
-    <key>NSHighResolutionCapable</key>
-    <true/>
-    <key>NSPrincipalClass</key>
-    <string>NSApplication</string>
-    <key>NSScreenCaptureUsageDescription</key>
-    <string>ZoomDraw 需要屏幕录制权限来捕获屏幕内容，用于放大显示、截图与录屏。</string>
+	<key>CFBundleDisplayName</key>
+	<string>ZoomDraw</string>
+	<key>CFBundleExecutable</key>
+	<string>ZoomDraw</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.zoomdraw.app</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>ZoomDraw</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>2.5.1</string>
+	<key>CFBundleVersion</key>
+	<string>12</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>ZoomDraw 需要屏幕录制权限来捕获屏幕内容，用于放大显示、截图与录屏。</string>
 </dict>
 </plist>

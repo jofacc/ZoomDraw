@@ -78,15 +78,31 @@ final class ScreenshotController {
         }
     }
 
+    /// 把截图写入剪贴板。
+    ///
+    /// 必须只产生**一个** NSPasteboardItem：同一张图的 PNG / TIFF 只是它的不同
+    /// 表示形式（representation），应挂在同一个 item 上，由接收方按需挑选。
+    /// 若分成多个 item（例如 `setData` 后再 `writeObjects`，后者会追加新 item），
+    /// 支持多项粘贴的应用（Word、Pages、微信、备忘录等）会把每个 item 各粘贴一次，
+    /// 导致一次 ⌘V 出现两张相同的图。
     private func copyToPasteboard(_ image: NSImage) {
         let pb = NSPasteboard.general
         pb.clearContents()
-        if let tiff = image.tiffRepresentation,
-           let rep = NSBitmapImageRep(data: tiff),
-           let png = rep.representation(using: .png, properties: [:]) {
-            pb.setData(png, forType: .png)
+
+        let item = NSPasteboardItem()
+        var wrote = false
+        if let tiff = image.tiffRepresentation {
+            if let rep = NSBitmapImageRep(data: tiff),
+               let png = rep.representation(using: .png, properties: [:]) {
+                item.setData(png, forType: .png)
+                wrote = true
+            }
+            // TIFF 作为兼容表示，供不识别 PNG 的老应用使用
+            item.setData(tiff, forType: .tiff)
+            wrote = true
         }
-        pb.writeObjects([image])
+        guard wrote else { return }
+        pb.writeObjects([item])
     }
 
     private func saveToFile(_ image: NSImage) {

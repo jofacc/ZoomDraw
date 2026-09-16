@@ -1,6 +1,6 @@
 # ZoomDraw
 
-![version](https://img.shields.io/badge/version-2.5.0-blue) ![platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey) ![license](https://img.shields.io/badge/license-MIT-green)
+![version](https://img.shields.io/badge/version-2.5.1-blue) ![platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey) ![license](https://img.shields.io/badge/license-MIT-green)
 
 一个轻量的 macOS 屏幕**放大 + 截图 + 录屏 + 标注 + 文件暂存**小工具。
 
@@ -134,7 +134,7 @@ bash build.sh
 
 产物位于 `dist/`：
 - `ZoomDraw.app` — 应用本体
-- `ZoomDraw-2.5.0.dmg` — 分发镜像
+- `ZoomDraw-2.5.1.dmg` — 分发镜像
 
 ---
 
