@@ -1,8 +1,8 @@
 # ZoomDraw
 
-![version](https://img.shields.io/badge/version-2.5.1-blue) ![platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey) ![license](https://img.shields.io/badge/license-MIT-green)
+![version](https://img.shields.io/badge/version-2.6.0-blue) ![platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey) ![license](https://img.shields.io/badge/license-MIT-green)
 
-一个轻量的 macOS 屏幕**放大 + 截图 + 录屏 + 标注 + 文件暂存**小工具。
+一个轻量的 macOS 屏幕**放大 + 截图 + 录屏 + 标注 + 文件暂存 + 剪贴板历史**小工具。
 
 - 菜单栏常驻，不占 Dock
 - 全局快捷键，可在偏好设置中自定义
@@ -10,6 +10,7 @@
 - 微信/企业微信式截图：窗口自动识别、放大镜取色、标注工具栏、一键复制/保存
 - 区域录屏：暂停/继续、实时计时，导出 **MP4** 或 **GIF**
 - 暂存板：跨应用搬运文件的中转站，拖入拖出、拉框多选、贴边自动收起
+- 剪贴板历史：自动记录文本 / 链接 / 颜色 / 图片 / 文件，搜索、分类、预览、一键粘贴回原应用
 - 原生 Swift + AppKit，单文件二进制 ~600 KB
 - 支持 macOS 13+，已在 macOS 15 上测试
 
@@ -24,6 +25,7 @@
 | **截图 / 录屏** | `⌥ S` |
 | 开/关 **暂存板** | `⌥ V` |
 | **剪贴板内容存入暂存板** | `⌥ ⇧ V` |
+| 开/关 **剪贴板历史** | `⌘ \` |
 
 > 在菜单栏 → **偏好设置…**（`⌘,`）中自由修改。
 
@@ -108,11 +110,46 @@
 - 拖动标题栏移动窗口，右下角可调整大小，位置与尺寸会被记住
 - 内容持久保存，重启应用后仍在（源文件被移动/删除的条目会标橙并可一键清理）
 
+### 剪贴板历史
+按 `⌘\` 在屏幕中央弹出历史面板，不会抢走当前应用的焦点，选中后直接粘贴回原来的输入位置。
+
+- **自动记录**：文本（保留富文本格式）、链接、颜色值（`#RRGGBB`）、图片、文件
+- **去重**：再次复制已有内容只会把它移到最前，不会重复
+- **搜索**：打开即可输入，多个关键词用空格分隔；也会匹配来源应用名
+- **分类**：全部 / 文本 / 图片 / 文件 / 链接 / 固定，`Tab` 切换
+- **预览**：右侧显示全文、原图、文件缩略图，以及来源应用和复制时间
+- **拖出**：条目可直接拖到其他应用
+
+| 操作 | 按键 |
+|---|---|
+| 粘贴到当前应用 | `⏎` / 双击 |
+| 以纯文本粘贴 | `⇧⏎` |
+| 直接粘贴第 N 条 | `⌘1` – `⌘9` |
+| 仅复制，不粘贴 | `⌘C` |
+| 固定 / 取消固定（置顶、永不过期） | `⌘P` |
+| 删除这一条 | `⌘⌫` |
+| 存入暂存板 | `⌘S` |
+| 打开（链接 / 文件 / 图片） | `⌘O` |
+| 关闭 | `Esc` / 再按一次 `⌘\` |
+
+- **隐私**：密码管理器标记为隐藏 / 临时的内容一律不记录；默认忽略钥匙串访问、密码、1Password、Bitwarden 等应用，可在设置中增删
+- 菜单栏「剪贴板记录」可**暂停记录**（15 分钟 / 1 小时 / 直到恢复）或**清除最近 5 分钟 / 15 分钟 / 全部**
+- 默认保留 200 条 / 1 个月，可在「偏好设置 → 剪贴板」中调整；数据只保存在本机 `~/Library/Application Support/ZoomDraw/`
+
+> ⚠️ 「选中后自动粘贴」需要**辅助功能**权限（用于模拟 `⌘V`）：
+> 系统设置 → 隐私与安全性 → 辅助功能 → 勾选 ZoomDraw。未授权时会退化为「已复制，请手动按 `⌘V`」。
+
 ### 独立画笔标注
 - 操作同上；`ESC` 退出
 
 > ⚠️ 首次使用「放大 / 截图 / 录屏」时，macOS 会请求**屏幕录制**权限：
 > 系统设置 → 隐私与安全性 → 屏幕录制 → 勾选 ZoomDraw → 重新启动应用。
+
+---
+
+## 更新日志
+
+各版本的详细改动见 [CHANGELOG.md](CHANGELOG.md)。
 
 ---
 
@@ -134,7 +171,7 @@ bash build.sh
 
 产物位于 `dist/`：
 - `ZoomDraw.app` — 应用本体
-- `ZoomDraw-2.5.1.dmg` — 分发镜像
+- `ZoomDraw-2.6.0.dmg` — 分发镜像
 
 ---
 
@@ -159,12 +196,17 @@ bash build.sh
 │   ├── ShelfStore.swift            # 暂存板数据与持久化
 │   ├── ShelfWindow.swift           # 暂存板浮窗 + 拖入拖出网格
 │   ├── ShelfController.swift       # 暂存板显隐与拖拽自动唤出
+│   ├── ClipboardStore.swift        # 剪贴板监听、去重、隐私过滤与持久化
+│   ├── ClipboardPanel.swift        # 剪贴板历史面板（搜索 / 分类 / 预览）
+│   ├── ClipboardController.swift   # 面板显隐、粘贴回原应用、辅助功能权限
+│   ├── ClipboardPrefsPane.swift    # 偏好设置「剪贴板」标签页
 │   ├── DrawController.swift
 │   ├── DrawWindow.swift            # 透明画布
 │   └── Stroke.swift                # 共享笔迹模型与渲染器
 ├── Resources/Info.plist
 ├── Package.swift                # SwiftPM（备用）
 ├── build.sh                     # 一键打包 .app + .dmg
+├── CHANGELOG.md                 # 更新日志
 ├── LICENSE                      # MIT
 └── README.md
 ```

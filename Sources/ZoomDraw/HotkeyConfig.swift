@@ -29,6 +29,8 @@ struct HotkeyBinding: Codable, Equatable {
             45:"N", 46:"M",
             18:"1", 19:"2", 20:"3", 21:"4", 22:"6", 23:"5", 25:"9", 26:"7", 28:"8", 29:"0",
             36:"↩", 48:"⇥", 49:"Space", 51:"⌫", 53:"ESC",
+            42:"\\", 41:";", 39:"'", 43:",", 47:".", 44:"/", 33:"[", 30:"]",
+            27:"-", 24:"=", 50:"`", 10:"§",
             123:"←", 124:"→", 125:"↓", 126:"↑",
             122:"F1", 120:"F2", 99:"F3", 118:"F4", 96:"F5", 97:"F6", 98:"F7", 100:"F8", 101:"F9", 109:"F10", 103:"F11", 111:"F12"
         ]
@@ -42,6 +44,7 @@ enum HotkeyAction: String, CaseIterable {
     case shot = "hotkey.shot"
     case shelf = "hotkey.shelf"
     case shelfPaste = "hotkey.shelfPaste"
+    case clipboard = "hotkey.clipboard"
 
     var title: String {
         switch self {
@@ -50,6 +53,7 @@ enum HotkeyAction: String, CaseIterable {
         case .shot: return "截图 / 录屏"
         case .shelf: return "暂存板"
         case .shelfPaste: return "剪贴板存入暂存板"
+        case .clipboard: return "剪贴板历史"
         }
     }
 
@@ -66,6 +70,8 @@ enum HotkeyAction: String, CaseIterable {
         case .shelfPaste: // Option+Shift+V
             return HotkeyBinding(keyCode: 9,
                                  modifiers: NSEvent.ModifierFlags([.option, .shift]).rawValue)
+        case .clipboard: // Command+\
+            return HotkeyBinding(keyCode: 42, modifiers: NSEvent.ModifierFlags.command.rawValue)
         }
     }
 }

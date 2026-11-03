@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotkeyIDs: [HotkeyAction: UInt32] = [:]
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        ClipboardSettings.registerDefaults()
         setupStatusItem()
         applyHotkeys()
         NotificationCenter.default.addObserver(self,
@@ -21,7 +22,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.updateStatusIcon()
             self?.rebuildMenu()
         }
+        NotificationCenter.default.addObserver(self,
+            selector: #selector(onShelfChanged),
+            name: .clipboardStateChanged, object: nil)
         ShelfController.shared.startup()
+        ClipboardStore.shared.startup()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        ClipboardStore.shared.flush()
     }
 
     /// 关键：关闭最后一个窗口不要退出 app（菜单栏应用必须）
@@ -88,6 +97,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(makeItem(shelfTitle, action: #selector(triggerShelf)))
         menu.addItem(makeItem("粘贴到暂存板  (\(pasteKey))", action: #selector(shelfPaste)))
         menu.addItem(.separator())
+
+        let clipKey = HotkeyConfig.shared.binding(for: .clipboard).displayString
+        let clipStore = ClipboardStore.shared
+        let clipState = !ClipboardSettings.enabled ? " · 已关闭" : (clipStore.isPaused ? " · 已暂停" : "")
+        menu.addItem(makeItem("剪贴板历史\(clipState)  (\(clipKey))", action: #selector(triggerClipboard)))
+        let clipMenu = NSMenu()
+        if ClipboardSettings.enabled {
+            if clipStore.isPaused {
+                clipMenu.addItem(makeItem("恢复记录", action: #selector(clipResume)))
+            } else {
+                let p15 = makeItem("暂停记录 15 分钟", action: #selector(clipPause(_:))); p15.tag = 15
+                let p60 = makeItem("暂停记录 1 小时", action: #selector(clipPause(_:))); p60.tag = 60
+                let pInf = makeItem("暂停记录，直到手动恢复", action: #selector(clipPause(_:))); pInf.tag = 0
+                [p15, p60, pInf].forEach(clipMenu.addItem)
+            }
+        } else {
+            clipMenu.addItem(makeItem("开启剪贴板历史", action: #selector(clipEnable)))
+        }
+        clipMenu.addItem(.separator())
+        let c5 = makeItem("清除最近 5 分钟", action: #selector(clipClear(_:))); c5.tag = 5
+        let c15 = makeItem("清除最近 15 分钟", action: #selector(clipClear(_:))); c15.tag = 15
+        let cAll = makeItem("清除全部…", action: #selector(clipClear(_:))); cAll.tag = 0
+        [c5, c15, cAll].forEach(clipMenu.addItem)
+        let clipSub = NSMenuItem(title: "剪贴板记录", action: nil, keyEquivalent: "")
+        clipSub.submenu = clipMenu
+        menu.addItem(clipSub)
+        menu.addItem(.separator())
         menu.addItem(makeItem("偏好设置…", action: #selector(openPrefs), keyEquivalent: ","))
         menu.addItem(makeItem("使用说明", action: #selector(showHelp)))
         menu.addItem(makeItem("关于 ZoomDraw", action: #selector(showAbout)))
@@ -116,6 +152,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case .shot:  handler = { [weak self] in self?.triggerShot() }
             case .shelf: handler = { [weak self] in self?.triggerShelf() }
             case .shelfPaste: handler = { [weak self] in self?.shelfPaste() }
+            case .clipboard: handler = { [weak self] in self?.triggerClipboard() }
             }
             if let id = hotkeys.register(keyCode: b.keyCode, modifiers: b.modifierFlags, handler: handler) {
                 hotkeyIDs[action] = id
@@ -165,6 +202,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ShelfController.shared.addFromClipboard()
     }
 
+    @objc private func triggerClipboard() {
+        ClipboardController.shared.toggle()
+    }
+
+    @objc private func clipPause(_ sender: NSMenuItem) {
+        ClipboardStore.shared.pause(minutes: sender.tag > 0 ? sender.tag : nil)
+        ScreenshotToast.show(sender.tag > 0 ? "已暂停记录剪贴板 \(sender.title.replacingOccurrences(of: "暂停记录 ", with: ""))"
+                                            : "已暂停记录剪贴板，可在菜单中恢复")
+    }
+
+    @objc private func clipResume() {
+        ClipboardStore.shared.resume()
+        ScreenshotToast.show("已恢复记录剪贴板")
+    }
+
+    @objc private func clipEnable() {
+        ClipboardSettings.enabled = true
+        ScreenshotToast.show("已开启剪贴板历史")
+    }
+
+    @objc private func clipClear(_ sender: NSMenuItem) {
+        if sender.tag > 0 {
+            ClipboardStore.shared.clear(lastMinutes: sender.tag)
+            ScreenshotToast.show("已清除最近 \(sender.tag) 分钟的记录")
+            return
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "清除全部剪贴板历史？"
+        alert.informativeText = "固定的条目会保留。此操作无法撤销。"
+        alert.addButton(withTitle: "清除")
+        alert.addButton(withTitle: "取消")
+        alert.buttons.first?.hasDestructiveAction = true
+        if alert.runModal() == .alertFirstButtonReturn {
+            ClipboardStore.shared.clear(lastMinutes: nil)
+            ScreenshotToast.show("已清除剪贴板历史")
+        }
+    }
+
     @objc private func stopRecording() {
         RecordingController.shared.stop()
     }
@@ -198,6 +274,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           \(shotKey)  截图 / 录屏
           \(shelfKey)  开/关 暂存板
           \(HotkeyConfig.shared.binding(for: .shelfPaste).displayString)  剪贴板内容存入暂存板
+          \(HotkeyConfig.shared.binding(for: .clipboard).displayString)  开/关 剪贴板历史
 
         放大模式：
           • 鼠标移动：跟随焦点
@@ -240,6 +317,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           • 右键：在 Finder 中显示 / 清理失效条目 / 清空
           • 拖动标题栏可移动窗口，右下角可调整大小
 
+        剪贴板历史（自动记录复制过的文本、链接、颜色、图片、文件）：
+          • 打开后直接输入即可搜索；Tab / ⇧Tab 切换分类
+          • ⏎ 粘贴到当前应用 · ⇧⏎ 以纯文本粘贴 · ⌘1–9 直接粘贴第 N 条
+          • ⌘C 仅复制 · ⌘P 固定 · ⌘⌫ 删除 · ⌘S 存入暂存板 · ⌘O 打开
+          • 条目可直接拖到其他应用
+          • 自动粘贴需要「辅助功能」权限；密码管理器的内容不会被记录
+          • 菜单栏「剪贴板记录」可暂停记录或清除最近记录
+
         独立画笔标注：
           • 鼠标拖拽绘制；同样的 1-5 / A/B/C/D / Z / X / ESC
 
@@ -256,7 +341,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let build = info?["CFBundleVersion"] as? String ?? "—"
         let alert = NSAlert()
         alert.messageText = "ZoomDraw  v\(short) (build \(build))"
-        alert.informativeText = "一个轻量的屏幕放大、截图、录屏、标注与文件暂存工具\n\n版权所有 tywinliu，保留所有权利。"
+        alert.informativeText = "一个轻量的屏幕放大、截图、录屏、标注、文件暂存与剪贴板历史工具\n\n版权所有 tywinliu，保留所有权利。"
         alert.runModal()
     }
 

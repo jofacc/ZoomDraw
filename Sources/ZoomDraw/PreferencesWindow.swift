@@ -1,12 +1,12 @@
 import AppKit
 
-/// 偏好设置窗口：按模块分标签页（快捷键 / 暂存板）
+/// 偏好设置窗口：按模块分标签页（快捷键 / 暂存板 / 剪贴板）
 final class PreferencesWindowController: NSWindowController {
     static let shared = PreferencesWindowController()
 
     private var rows: [HotkeyAction: HotkeyRecorderField] = [:]
 
-    private static let winSize = NSSize(width: 480, height: 380)
+    private static let winSize = NSSize(width: 540, height: 540)
 
     private convenience init() {
         let win = NSWindow(contentRect: NSRect(origin: .zero, size: PreferencesWindowController.winSize),
@@ -23,6 +23,8 @@ final class PreferencesWindowController: NSWindowController {
             w.center()
             NSApp.activate(ignoringOtherApps: true)
             w.makeKeyAndOrderFront(nil)
+            // 不要让第一个快捷键输入框自动进入录制状态
+            w.makeFirstResponder(nil)
         }
     }
 
@@ -41,6 +43,11 @@ final class PreferencesWindowController: NSWindowController {
         shelfItem.label = "暂存板"
         shelfItem.view = buildShelfPane(size: tabs.contentRect.size)
         tabs.addTabViewItem(shelfItem)
+
+        let clipItem = NSTabViewItem(identifier: "clipboard")
+        clipItem.label = "剪贴板"
+        clipItem.view = ClipboardPrefsPane(frame: NSRect(origin: .zero, size: tabs.contentRect.size))
+        tabs.addTabViewItem(clipItem)
 
         content.addSubview(tabs)
     }
