@@ -5,11 +5,16 @@ struct HotkeyBinding: Codable, Equatable {
     var keyCode: UInt32
     var modifiers: UInt   // NSEvent.ModifierFlags.rawValue（device-independent 部分）
 
+    /// 「未设置」：不注册任何全局快捷键
+    static let none = HotkeyBinding(keyCode: UInt32.max, modifiers: 0)
+    var isNone: Bool { keyCode == UInt32.max }
+
     var modifierFlags: NSEvent.ModifierFlags {
         NSEvent.ModifierFlags(rawValue: modifiers)
     }
 
     var displayString: String {
+        if isNone { return "未设置" }
         var s = ""
         let f = modifierFlags
         if f.contains(.control) { s += "⌃" }
@@ -45,6 +50,8 @@ enum HotkeyAction: String, CaseIterable {
     case shelf = "hotkey.shelf"
     case shelfPaste = "hotkey.shelfPaste"
     case clipboard = "hotkey.clipboard"
+    case windowSwitcher = "hotkey.windowSwitcher"
+    case dockPreview = "hotkey.dockPreview"
 
     var title: String {
         switch self {
@@ -54,6 +61,8 @@ enum HotkeyAction: String, CaseIterable {
         case .shelf: return "暂存板"
         case .shelfPaste: return "剪贴板存入暂存板"
         case .clipboard: return "剪贴板历史"
+        case .windowSwitcher: return "窗口切换器"
+        case .dockPreview: return "开/关 程序坞预览"
         }
     }
 
@@ -72,6 +81,10 @@ enum HotkeyAction: String, CaseIterable {
                                  modifiers: NSEvent.ModifierFlags([.option, .shift]).rawValue)
         case .clipboard: // Command+\
             return HotkeyBinding(keyCode: 42, modifiers: NSEvent.ModifierFlags.command.rawValue)
+        case .windowSwitcher: // Option+Tab
+            return HotkeyBinding(keyCode: 48, modifiers: NSEvent.ModifierFlags.option.rawValue)
+        case .dockPreview: // 默认不设置
+            return .none
         }
     }
 }

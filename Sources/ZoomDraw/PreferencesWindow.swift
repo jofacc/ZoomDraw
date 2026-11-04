@@ -49,6 +49,11 @@ final class PreferencesWindowController: NSWindowController {
         clipItem.view = ClipboardPrefsPane(frame: NSRect(origin: .zero, size: tabs.contentRect.size))
         tabs.addTabViewItem(clipItem)
 
+        let dockItem = NSTabViewItem(identifier: "dock")
+        dockItem.label = "程序坞"
+        dockItem.view = DockPrefsPane(frame: NSRect(origin: .zero, size: tabs.contentRect.size))
+        tabs.addTabViewItem(dockItem)
+
         content.addSubview(tabs)
     }
 
@@ -60,10 +65,10 @@ final class PreferencesWindowController: NSWindowController {
         let leftPad: CGFloat = 20
         let rowH: CGFloat = 34
 
-        let hint = NSTextField(labelWithString: "点击右侧输入框，按下你想要的组合键")
+        let hint = NSTextField(labelWithString: "点击右侧输入框，按下你想要的组合键；录制时按 ⌫ 可清除（不设置）")
         hint.font = NSFont.systemFont(ofSize: 11)
         hint.textColor = .secondaryLabelColor
-        hint.frame = NSRect(x: leftPad, y: size.height - 30, width: 360, height: 16)
+        hint.frame = NSRect(x: leftPad, y: size.height - 30, width: size.width - leftPad * 2, height: 16)
         hint.autoresizingMask = [.minYMargin]
         pane.addSubview(hint)
 
@@ -185,6 +190,7 @@ final class PreferencesWindowController: NSWindowController {
     }
 
     private func findConflict(new: HotkeyBinding, except: HotkeyAction) -> HotkeyAction? {
+        guard !new.isNone else { return nil }
         for a in HotkeyAction.allCases where a != except {
             if HotkeyConfig.shared.binding(for: a) == new { return a }
         }
@@ -236,9 +242,11 @@ final class HotkeyRecorderField: NSView {
         layer?.borderColor = (recording ? NSColor.controlAccentColor : NSColor.separatorColor).cgColor
 
         let text = recording ? "请按下组合键…" : binding.displayString
+        let dim = recording || binding.isNone
         let attrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedSystemFont(ofSize: 13, weight: .medium),
-            .foregroundColor: recording ? NSColor.tertiaryLabelColor : NSColor.labelColor
+            .font: binding.isNone && !recording ? NSFont.systemFont(ofSize: 13)
+                                                : NSFont.monospacedSystemFont(ofSize: 13, weight: .medium),
+            .foregroundColor: dim ? NSColor.tertiaryLabelColor : NSColor.labelColor
         ]
         let s = (text as NSString)
         let size = s.size(withAttributes: attrs)
@@ -249,6 +257,13 @@ final class HotkeyRecorderField: NSView {
         guard recording else { return }
         // 仅允许常见修饰键
         let mods = event.modifierFlags.intersection([.command, .option, .control, .shift])
+        // 不带修饰键按 ⌫ / ⌦：清除快捷键
+        if mods.isEmpty && (event.keyCode == 51 || event.keyCode == 117) {
+            binding = .none
+            onChange?(.none)
+            window?.makeFirstResponder(nil)
+            return
+        }
         // 至少要一个修饰键，避免误触
         guard !mods.isEmpty else {
             NSSound.beep(); return

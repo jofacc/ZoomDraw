@@ -1,8 +1,8 @@
 # ZoomDraw
 
-![version](https://img.shields.io/badge/version-2.6.0-blue) ![platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey) ![license](https://img.shields.io/badge/license-MIT-green)
+![version](https://img.shields.io/badge/version-2.7.0-blue) ![platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey) ![license](https://img.shields.io/badge/license-MIT-green)
 
-一个轻量的 macOS 屏幕**放大 + 截图 + 录屏 + 标注 + 文件暂存 + 剪贴板历史**小工具。
+一个轻量的 macOS 屏幕**放大 + 截图 + 录屏 + 标注 + 文件暂存 + 剪贴板历史 + 窗口预览**小工具。
 
 - 菜单栏常驻，不占 Dock
 - 全局快捷键，可在偏好设置中自定义
@@ -11,6 +11,7 @@
 - 区域录屏：暂停/继续、实时计时，导出 **MP4** 或 **GIF**
 - 暂存板：跨应用搬运文件的中转站，拖入拖出、拉框多选、贴边自动收起
 - 剪贴板历史：自动记录文本 / 链接 / 颜色 / 图片 / 文件，搜索、分类、预览、一键粘贴回原应用
+- 程序坞预览：鼠标停在程序坞图标上显示该应用所有窗口的缩略图，点击切换；`⌥Tab` 跨应用按窗口切换
 - 原生 Swift + AppKit，单文件二进制 ~600 KB
 - 支持 macOS 13+，已在 macOS 15 上测试
 
@@ -26,8 +27,10 @@
 | 开/关 **暂存板** | `⌥ V` |
 | **剪贴板内容存入暂存板** | `⌥ ⇧ V` |
 | 开/关 **剪贴板历史** | `⌘ \` |
+| **窗口切换器** | `⌥ Tab` |
+| 开/关 **程序坞预览** | 默认不设置 |
 
-> 在菜单栏 → **偏好设置…**（`⌘,`）中自由修改。
+> 在菜单栏 → **偏好设置…**（`⌘,`）中自由修改；录制时按 `⌫` 可清除（不设置）。
 
 ### 放大模式
 - 鼠标移动：跟随焦点
@@ -139,6 +142,36 @@
 > ⚠️ 「选中后自动粘贴」需要**辅助功能**权限（用于模拟 `⌘V`）：
 > 系统设置 → 隐私与安全性 → 辅助功能 → 勾选 ZoomDraw。未授权时会退化为「已复制，请手动按 `⌘V`」。
 
+### 程序坞预览
+鼠标停在程序坞的应用图标上（默认 0.3 秒），在图标旁弹出该应用所有窗口的缩略图。
+
+- **点击缩略图**切换到该窗口；最小化的窗口会先还原
+- 窗口多时自动换行成网格；程序坞在左 / 右侧时预览显示在旁边
+- 鼠标移到缩略图上显示 **关闭 / 最小化 / 全屏** 三个按钮；右上角「退出」退出整个应用
+- 最小化 / 隐藏 / 其他桌面的窗口带标记；其他桌面的窗口点击后切到对应应用
+- 鼠标进入预览后：`←` `→` `↑` `↓` 选择 · `⏎` 切换 · `ESC` 关闭
+- 鼠标离开图标和预览约 0.2 秒后自动收起；不会抢走当前应用的焦点
+- 「偏好设置 → 程序坞」：开关、悬停延迟（0.1 – 0.8 秒）、缩略图大小、是否显示最小化 / 其他桌面窗口 / 标题、不显示预览的应用
+- 开启系统「台前调度」时自动暂停
+
+### 窗口切换器
+按住 `⌥` 连按 `Tab`，在所有应用的窗口之间切换（系统 `⌘Tab` 只能按应用切换）：
+
+| 操作 | 按键 |
+|---|---|
+| 下一个 / 上一个 | `Tab` / `⇧Tab`、方向键 |
+| 切换到选中窗口 | 松开 `⌥` / 鼠标点击 |
+| 关闭窗口 | `W` |
+| 最小化 / 还原 | `M` |
+| 退出应用 | `Q` |
+| 取消 | `ESC` |
+
+- 按一下 `⌥Tab` 立即松开 = 在最近两个窗口之间来回切换
+- 也可从菜单栏「窗口切换器」打开，此时用 `⏎` 确认
+
+> ⚠️ 程序坞预览和窗口切换器需要**辅助功能**权限；缩略图显示窗口画面需要**屏幕录制**权限，未授权时显示应用图标。
+> 如同时使用 iDock、DockDoor 等同类工具，请关闭其中一个的预览，避免重复弹出。
+
 ### 独立画笔标注
 - 操作同上；`ESC` 退出
 
@@ -171,7 +204,7 @@ bash build.sh
 
 产物位于 `dist/`：
 - `ZoomDraw.app` — 应用本体
-- `ZoomDraw-2.6.0.dmg` — 分发镜像
+- `ZoomDraw-2.7.0.dmg` — 分发镜像
 
 ---
 
@@ -200,6 +233,14 @@ bash build.sh
 │   ├── ClipboardPanel.swift        # 剪贴板历史面板（搜索 / 分类 / 预览）
 │   ├── ClipboardController.swift   # 面板显隐、粘贴回原应用、辅助功能权限
 │   ├── ClipboardPrefsPane.swift    # 偏好设置「剪贴板」标签页
+│   ├── WindowInventory.swift       # 窗口枚举与切换 / 关闭 / 最小化，程序坞设置
+│   ├── WindowThumbnailer.swift     # 窗口缩略图截取与缓存
+│   ├── WindowPreviewViews.swift    # 预览浮窗、缩略图格子、网格布局
+│   ├── DockWatcher.swift           # 监听鼠标停在哪个程序坞图标上
+│   ├── DockPreviewController.swift # 程序坞窗口预览
+│   ├── WindowSwitcherController.swift # ⌥Tab 窗口切换器
+│   ├── DockPrefsPane.swift         # 偏好设置「程序坞」标签页
+│   ├── AboutHelpWindow.swift       # 关于与使用说明
 │   ├── DrawController.swift
 │   ├── DrawWindow.swift            # 透明画布
 │   └── Stroke.swift                # 共享笔迹模型与渲染器
