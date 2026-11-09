@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         ClipboardSettings.registerDefaults()
         DockSettings.registerDefaults()
+        AISettings.registerDefaults()
         setupStatusItem()
         applyHotkeys()
         NotificationCenter.default.addObserver(self,
@@ -32,10 +33,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ShelfController.shared.startup()
         ClipboardStore.shared.startup()
         DockPreviewController.shared.startup()
+        // 剪贴板面板打开期间暂停其他全局快捷键（只保留开关面板的那个），
+        // 否则设成 ⌘1、⌥2 之类的全局快捷键会抢走面板里的网页搜索 / 快速粘贴
+        ClipboardController.shared.onVisibilityChanged = { [weak self] visible in
+            self?.updateHotkeySuspension(panelVisible: visible)
+        }
+    }
+
+    private func updateHotkeySuspension(panelVisible: Bool) {
+        if panelVisible {
+            hotkeys.suspend(except: Set([hotkeyIDs[.clipboard]].compactMap { $0 }))
+        } else {
+            hotkeys.resume()
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         ClipboardStore.shared.flush()
+        AIHistoryStore.shared.flush()
     }
 
     /// 关键：关闭最后一个窗口不要退出 app（菜单栏应用必须）
@@ -172,6 +187,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 hotkeyIDs[action] = id
             }
         }
+        if ClipboardController.shared.isVisible { updateHotkeySuspension(panelVisible: true) }
     }
 
     @objc private func onHotkeysChanged() {

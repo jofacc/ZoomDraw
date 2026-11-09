@@ -12,6 +12,9 @@ final class ClipboardController: NSObject, NSWindowDelegate {
 
     var isVisible: Bool { panel?.isVisible == true }
 
+    /// 面板显示 / 隐藏时通知（打开期间暂停其他全局快捷键，让 ⌘1–9 等按键交给面板）
+    var onVisibilityChanged: ((Bool) -> Void)?
+
     // MARK: 显示
 
     func toggle() {
@@ -20,24 +23,53 @@ final class ClipboardController: NSObject, NSWindowDelegate {
 
     func show() {
         let front = NSWorkspace.shared.frontmostApplication
-        targetApp = front?.processIdentifier == ProcessInfo.processInfo.processIdentifier ? nil : front
+        let resume = historyView?.canResumeAI == true && hiddenAt.map { Date().timeIntervalSince($0) < 120 } == true
+        if front?.processIdentifier != ProcessInfo.processInfo.processIdentifier {
+            targetApp = front
+        } else if !resume {
+            targetApp = nil
+        }
 
         let panel = self.panel ?? makePanel()
+        if resume { historyView?.prepareForResume() } else { historyView?.prepareForShow() }
         let screen = NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) }
             ?? NSScreen.main
         if let vf = screen?.visibleFrame {
             let s = ClipboardHistoryView.size
-            panel.setFrame(NSRect(x: (vf.midX - s.width / 2).rounded(),
-                                  y: (vf.midY - s.height / 2).rounded(),
-                                  width: s.width, height: s.height), display: false)
+            let h = historyView?.isAIMode == true ? aiHeight(in: vf) : s.height
+            let listTop = (vf.midY + s.height / 2).rounded()
+            panel.setFrame(NSRect(x: (vf.midX - s.width / 2).rounded(), y: max(vf.minY + 10, listTop - h),
+                                  width: s.width, height: h), display: false)
         }
-        historyView?.prepareForShow()
+        onVisibilityChanged?(true)
         panel.makeKeyAndOrderFront(nil)
         panel.makeFirstResponder(historyView?.searchField)
     }
 
     func hide() {
+        guard panel?.isVisible == true else { return }
         panel?.orderOut(nil)
+        hiddenAt = Date()
+        onVisibilityChanged?(false)
+    }
+
+    private var hiddenAt: Date?
+
+    private func aiHeight(in vf: NSRect) -> CGFloat {
+        min(ClipboardHistoryView.aiHeight, vf.height - 40).rounded()
+    }
+
+    /// 列表 ↔ AI 回答：保持顶部位置不变，调整高度
+    private func resizePanel(ai: Bool) {
+        guard let p = panel else { return }
+        let screen = NSScreen.screens.first { $0.frame.intersects(p.frame) } ?? NSScreen.main
+        guard let vf = screen?.visibleFrame else { return }
+        let h = ai ? aiHeight(in: vf) : ClipboardHistoryView.size.height
+        var f = p.frame
+        let top = f.maxY
+        f.size.height = h
+        f.origin.y = max(vf.minY + 10, top - h)
+        p.setFrame(f, display: true)
     }
 
     private func makePanel() -> ClipboardPanel {
@@ -52,6 +84,28 @@ final class ClipboardController: NSObject, NSWindowDelegate {
         v.onCopyOnly = { [weak self] item in self?.copyOnly(item) }
         v.onSaveToShelf = { [weak self] item in self?.saveToShelf(item) }
         v.onOpen = { [weak self] item in self?.open(item) }
+        v.onWebSearch = { [weak self] engine, query in
+            self?.hide()
+            if !WebSearch.open(engine, query: query) { ScreenshotToast.show("「\(engine.name)」的网址模板无效") }
+        }
+        v.onModeChanged = { [weak self] ai in self?.resizePanel(ai: ai) }
+        v.onPasteText = { [weak self] text in
+            guard AIOutput.copy(text) else { return }
+            self?.pasteCurrentPasteboard()
+        }
+        v.onPin = { [weak self] c in
+            let frame = self?.panel?.frame
+            self?.hide()
+            AIPinnedWindowController.pin(c, near: frame)
+        }
+        v.onOpenAISettings = { [weak self] in
+            self?.hide()
+            PreferencesWindowController.shared.show(tab: "ai")
+        }
+        v.onOpenURL = { [weak self] url in
+            self?.hide()
+            AIOutput.open(url)
+        }
 
         panel = p
         historyView = v
@@ -70,7 +124,14 @@ final class ClipboardController: NSObject, NSWindowDelegate {
             ScreenshotToast.show(item.kind == .file ? "文件已不存在" : "该条目已失效")
             return
         }
+        pasteCurrentPasteboard()
+    }
+
+    /// 关闭面板，回到原来的应用并模拟 ⌘V（未开启自动粘贴时只提示已复制）
+    private func pasteCurrentPasteboard() {
         hide()
+        hiddenAt = nil   // 粘贴后再打开面板不再回到 AI 回答
+
         guard ClipboardSettings.autoPaste else {
             ScreenshotToast.show("已复制")
             return

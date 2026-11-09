@@ -1,6 +1,6 @@
 import AppKit
 
-/// 偏好设置窗口：按模块分标签页（快捷键 / 暂存板 / 剪贴板）
+/// 偏好设置窗口：按模块分标签页（快捷键 / 暂存板 / 剪贴板 / 程序坞 / 网页搜索）
 final class PreferencesWindowController: NSWindowController {
     static let shared = PreferencesWindowController()
 
@@ -20,7 +20,7 @@ final class PreferencesWindowController: NSWindowController {
 
     func show() {
         if let w = window {
-            w.center()
+            if !w.isVisible { w.center() }
             NSApp.activate(ignoringOtherApps: true)
             w.makeKeyAndOrderFront(nil)
             // 不要让第一个快捷键输入框自动进入录制状态
@@ -28,11 +28,20 @@ final class PreferencesWindowController: NSWindowController {
         }
     }
 
+    /// 打开并切换到指定标签页（hotkeys / shelf / clipboard / dock / websearch / ai）
+    func show(tab: String) {
+        tabView?.selectTabViewItem(withIdentifier: tab)
+        show()
+    }
+
+    private var tabView: NSTabView?
+
     private func buildUI() {
         guard let content = window?.contentView else { return }
 
         let tabs = NSTabView(frame: content.bounds.insetBy(dx: 12, dy: 12))
         tabs.autoresizingMask = [.width, .height]
+        tabView = tabs
 
         let hotkeyItem = NSTabViewItem(identifier: "hotkeys")
         hotkeyItem.label = "快捷键"
@@ -53,6 +62,16 @@ final class PreferencesWindowController: NSWindowController {
         dockItem.label = "程序坞"
         dockItem.view = DockPrefsPane(frame: NSRect(origin: .zero, size: tabs.contentRect.size))
         tabs.addTabViewItem(dockItem)
+
+        let webItem = NSTabViewItem(identifier: "websearch")
+        webItem.label = "快捷搜索"
+        webItem.view = WebSearchPrefsPane(frame: NSRect(origin: .zero, size: tabs.contentRect.size))
+        tabs.addTabViewItem(webItem)
+
+        let aiItem = NSTabViewItem(identifier: "ai")
+        aiItem.label = "AI"
+        aiItem.view = AIPrefsPane(frame: NSRect(origin: .zero, size: tabs.contentRect.size))
+        tabs.addTabViewItem(aiItem)
 
         content.addSubview(tabs)
     }
