@@ -1,6 +1,6 @@
 # ZoomDraw
 
-![version](https://img.shields.io/badge/version-3.0.0-blue) ![platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey) ![license](https://img.shields.io/badge/license-MIT-green)
+![version](https://img.shields.io/badge/version-3.0.1-blue) ![platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey) ![license](https://img.shields.io/badge/license-MIT-green)
 
 一个轻量的 macOS 屏幕**放大 + 截图 + 录屏 + 标注 + 文件暂存 + 剪贴板历史 + 窗口预览**小工具。
 
@@ -66,7 +66,8 @@
 | 文字 | `T` |
 
 - 颜色 `1`–`6`（红/黄/绿/蓝/白/黑）；笔触 `[` / `]`
-- `⌘Z` 撤销 · `⌘A` 全屏 · 右键返回重新框选 · `ESC` 退出
+- `⌘Z` 撤销 · `⌘A` 全屏 · 右键返回重新框选 · `ESC` 逐级退出（文字 → 选区 → 截图）
+- **卡住退不出时**：1.5 秒内连按 3 次 `ESC` 强制退出（遮罩失去键盘焦点也有效）；或再按一次截图快捷键；或菜单栏「强制关闭截图 / 放大 / 画笔遮罩」
 - **双击选区 / `⏎` / `⌘C` 完成并复制到剪贴板** · `⌘S` 保存为 PNG
 - 文字输入：`⏎` 提交，`⇧⏎` 换行，`ESC` 取消
 
@@ -244,7 +245,7 @@ bash build.sh
 
 产物位于 `dist/`：
 - `ZoomDraw.app` — 应用本体
-- `ZoomDraw-3.0.0.dmg` — 分发镜像
+- `ZoomDraw-3.0.1.dmg` — 分发镜像
 
 ---
 
@@ -261,7 +262,8 @@ bash build.sh
 │   ├── ScreenCapture.swift         # 共享屏幕捕获 & 窗口探测
 │   ├── ZoomController.swift        # 屏幕放大控制
 │   ├── ZoomWindow.swift            # 全屏放大 + 画笔叠加
-│   ├── ScreenshotController.swift  # 截图流程、剪贴板与保存
+│   ├── ScreenshotController.swift  # 截图流程（状态机 + 会话编号）、剪贴板与保存
+│   ├── OverlayEscapeGuard.swift    # 遮罩全局 Esc、连按 3 次强制退出
 │   ├── ScreenshotWindow.swift      # 截图选区 + 标注画布
 │   ├── ScreenshotToolbar.swift     # 截图标注工具栏
 │   ├── ScreenRecorder.swift        # 区域录屏采集与 H.264 编码

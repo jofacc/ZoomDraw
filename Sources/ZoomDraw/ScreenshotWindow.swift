@@ -680,17 +680,30 @@ final class ScreenshotView: NSView {
     }
 
     // MARK: - 键盘
+    /// 设置后，Esc 先交给它（控制器做去重和「连按强制退出」），再由它回调 handleEscape()
+    var onEscapeKey: (() -> Void)?
+
+    /// Esc：正在输入文字 → 取消输入；已有选区 → 回到框选；否则退出截图
+    func handleEscape() {
+        if let tv = textEditor {
+            if tv.hasMarkedText() { tv.unmarkText() }
+            tv.string = ""
+            commitTextEditor()
+            return
+        }
+        if phase == .selected {
+            if let e = NSApp.currentEvent { rightMouseDown(with: e) } else { onFinish?(nil, .cancelled) }
+        } else {
+            onFinish?(nil, .cancelled)
+        }
+    }
+
     override func keyDown(with event: NSEvent) {
         let mods = event.modifierFlags.intersection([.command, .option, .control, .shift])
 
         switch event.keyCode {
-        case 53: // ESC
-            if textEditor != nil { textEditor?.string = ""; commitTextEditor(); return }
-            if phase == .selected {
-                rightMouseDown(with: event)
-            } else {
-                onFinish?(nil, .cancelled)
-            }
+        case 53: // ESC：交给控制器统一处理（去重、连按强制退出）
+            if let h = onEscapeKey { h() } else { handleEscape() }
             return
         case 36, 76: // Return
             if phase == .selected {
@@ -783,8 +796,8 @@ final class ScreenshotTextView: NSTextView {
                 onCommit?()
             }
             return
-        case 53:        // ESC
-            onCancel?()
+        case 53:        // ESC：和遮罩其他地方的 Esc 走同一条路径
+            if let v = superview as? ScreenshotView, let h = v.onEscapeKey { h() } else { onCancel?() }
             return
         default:
             super.keyDown(with: event)

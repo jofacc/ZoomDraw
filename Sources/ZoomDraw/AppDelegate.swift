@@ -2,10 +2,10 @@ import AppKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
-    private let zoom = ZoomController()
-    private let draw = DrawController()
-    private let shot = ScreenshotController()
     private let hotkeys = HotkeyManager()
+    private lazy var zoom = ZoomController(hotkeys: hotkeys)
+    private lazy var draw = DrawController(hotkeys: hotkeys)
+    private lazy var shot = ScreenshotController(hotkeys: hotkeys)
     private var hotkeyIDs: [HotkeyAction: UInt32] = [:]
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -110,6 +110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(makeItem("放大屏幕" + keySuffix(.zoom), action: #selector(triggerZoom)))
         menu.addItem(makeItem("画笔标注" + keySuffix(.draw), action: #selector(triggerDraw)))
         menu.addItem(makeItem("截图录屏" + keySuffix(.shot), action: #selector(triggerShot)))
+        menu.addItem(makeItem("强制关闭截图 / 放大 / 画笔遮罩", action: #selector(forceCloseOverlays)))
         menu.addItem(.separator())
 
         let shelfCount = ShelfStore.shared.count
@@ -222,6 +223,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if zoom.isActive { zoom.stop() }
         if draw.isActive { draw.stop() }
         shot.toggle()
+    }
+
+    /// 兜底：无条件关闭所有全屏遮罩（不管控制器认为自己处于什么状态）
+    @objc private func forceCloseOverlays() {
+        shot.stop()
+        zoom.stop()
+        draw.stop()
     }
 
     @objc private func triggerShelf() {

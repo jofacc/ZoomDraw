@@ -3,17 +3,57 @@ import CoreGraphics
 import UniformTypeIdentifiers
 
 /// 截图控制器：冻结全屏画面 → 选区/标注 → 复制或保存（交互参考微信 / 企业微信）
+///
+/// 状态：idle → capturing（正在抓取屏幕，异步，可能要 0.2–2 秒）→ active（遮罩已显示）→ idle。
+/// 每次开始都会生成新的 session 编号；抓取完成时如果 session 已变（期间被取消或重新开始），丢弃结果，
+/// 不会出现「没人管的遮罩窗口」。
 final class ScreenshotController {
-    private(set) var isActive = false
+    private enum State { case idle, capturing, active }
+    private var state: State = .idle
+    private var session = 0
     private var windows: [ScreenshotWindow] = []
+    private let escapeGuard: OverlayEscapeGuard
+
+    /// 抓取屏幕超过这个时间还没完成就放弃（避免一直卡在 capturing，之后快捷键都无效）
+    private static let captureTimeout: TimeInterval = 8
+
+    var isActive: Bool { state != .idle }
+
+    init(hotkeys: HotkeyManager) {
+        escapeGuard = OverlayEscapeGuard(hotkeys: hotkeys)
+    }
 
     func toggle() {
-        if isActive { stop() } else { start() }
+        switch state {
+        case .idle:
+            start()
+        case .capturing:
+            // 正在抓取时再按一次：取消这次截图（抓取结果会被丢弃）
+            stop()
+        case .active:
+            // 遮罩应该在屏幕上；如果已经看不到了（异常情况），直接重新开始
+            if windows.contains(where: \.isVisible) {
+                stop()
+            } else {
+                stop()
+                start()
+            }
+        }
     }
 
     func start() {
-        guard !isActive else { return }
-        isActive = true
+        guard state == .idle else { return }
+        Self.closeOrphanWindows()
+        session += 1
+        let s = session
+        state = .capturing
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.captureTimeout) { [weak self] in
+            guard let self = self, self.session == s, self.state == .capturing else { return }
+            NSLog("[ZoomDraw] 截图：抓取屏幕超时，已取消")
+            self.stop()
+            ScreenshotToast.show("截图启动超时，请再试一次", duration: 2)
+        }
 
         Task { @MainActor in
             do {
@@ -21,15 +61,24 @@ final class ScreenshotController {
                 var created: [ScreenshotWindow] = []
                 for screen in NSScreen.screens {
                     let snapshot = try await ScreenCapture.captureScreen(screen)
+                    guard self.session == s else { return }   // 已取消
                     let win = ScreenshotWindow(screen: screen, snapshot: snapshot) { _, _ in }
                     win.shotView.onFinish = { [weak self, weak win] image, finish in
-                        guard let self = self, let win = win else { return }
+                        guard let self = self, let win = win, self.session == s else {
+                            win?.orderOut(nil)   // 不属于当前会话的窗口：直接关掉
+                            return
+                        }
                         self.finish(image: image, kind: finish,
                                     screen: screen, selection: win.shotView.selectionRect)
                     }
+                    win.shotView.onEscapeKey = { [weak self] in self?.escapeGuard.press() }
                     created.append(win)
                 }
+                guard self.session == s, self.state == .capturing else { return }
                 self.windows = created
+                self.state = .active
+                self.escapeGuard.arm(onEscape: { [weak self] in self?.handleEscape() },
+                                     onForceExit: { [weak self] in self?.forceExit() })
                 for w in created { w.orderFrontRegardless() }
                 NSApp.activate(ignoringOtherApps: true)
                 // 鼠标所在屏幕的窗口设为 key，保证键盘事件
@@ -41,17 +90,47 @@ final class ScreenshotController {
                     created.first?.makeKeyAndOrderFront(nil)
                 }
             } catch {
-                self.isActive = false
+                guard self.session == s else { return }
+                self.stop()
                 self.showPermissionAlert(error: error)
             }
         }
     }
 
+    /// 结束截图：任何状态下都会清理干净（不再依赖 isActive 判断）
     func stop() {
-        guard isActive else { return }
+        session += 1
+        state = .idle
+        escapeGuard.disarm()
         for w in windows { w.orderOut(nil) }
         windows.removeAll()
-        isActive = false
+        Self.closeOrphanWindows()
+    }
+
+    /// 普通 Esc：交给键盘焦点所在（或鼠标所在）屏幕的遮罩处理
+    private func handleEscape() {
+        guard state == .active, !windows.isEmpty else { stop(); return }
+        let mouse = NSEvent.mouseLocation
+        let target = windows.first(where: \.isKeyWindow)
+            ?? windows.first(where: { $0.frame.contains(mouse) })
+            ?? windows[0]
+        target.shotView.handleEscape()
+        // 遮罩失去焦点时顺便抢回来，后续按键能正常送达
+        if state == .active, !target.isKeyWindow {
+            NSApp.activate(ignoringOtherApps: true)
+            target.makeKeyAndOrderFront(nil)
+        }
+    }
+
+    /// 连按 Esc：无条件关闭
+    private func forceExit() {
+        stop()
+        ScreenshotToast.show("已强制退出截图")
+    }
+
+    /// 兜底：关闭所有还显示着的截图遮罩（包括早期版本可能遗留的）
+    private static func closeOrphanWindows() {
+        for w in NSApp.windows where w is ScreenshotWindow && w.isVisible { w.orderOut(nil) }
     }
 
     // MARK: - 结束处理
