@@ -140,10 +140,10 @@ final class WebSearchPrefsPane: NSView, NSTableViewDataSource, NSTableViewDelega
     }
 
     private func updateHint() {
-        let clip = HotkeyConfig.shared.binding(for: .clipboard)
-        let open = clip.isNone ? "剪贴板历史" : "剪贴板历史（\(clip.displayString)）"
+        let fs = HotkeyConfig.shared.binding(for: .fileSearch)
+        let open = fs.isNone ? "文件搜索" : "文件搜索（\(fs.displayString)）"
         hint.stringValue = "在\(open)的输入框中输入内容，按 ⌘1–⌘9 用对应模板处理（AI 搜索 / AI 指令 / 打开网页）；"
-            + "输入框为空时处理当前选中的条目。已勾选的前 \(WebSearch.maxShortcuts) 个按顺序对应 ⌘1–⌘9，可拖动排序。"
+            + "输入框为空时处理剪贴板里的内容。已勾选的前 \(WebSearch.maxShortcuts) 个按顺序对应 ⌘1–⌘9，可拖动排序。"
     }
 
     @objc private func hotkeysChanged() { updateHint() }

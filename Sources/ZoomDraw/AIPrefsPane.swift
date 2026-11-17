@@ -1,6 +1,6 @@
 import AppKit
 
-/// 偏好设置 →「AI」：接口、Key（钥匙串）、模型、思考模式、联网搜索来源、历史
+/// 偏好设置 →「AI」：接口、Key、模型、思考模式、联网搜索来源、历史
 final class AIPrefsPane: NSView, NSTextFieldDelegate, NSComboBoxDelegate {
     private let endpointField = NSTextField()
     private let keyField = NSSecureTextField()
@@ -11,7 +11,7 @@ final class AIPrefsPane: NSView, NSTextFieldDelegate, NSComboBoxDelegate {
     private let thinkingPopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private var sourceChecks: [WebSearcher.Source: NSButton] = [:]
     private let countPopup = NSPopUpButton(frame: .zero, pullsDown: false)
-    private let historyCheck = NSButton(checkboxWithTitle: "保存 AI 历史（在剪贴板面板的「✦ AI 历史」中查看、继续追问）",
+    private let historyCheck = NSButton(checkboxWithTitle: "保存 AI 历史（在文件搜索中按 ⌘H 查看、继续追问）",
                                         target: nil, action: nil)
     private var busy = false
 
@@ -31,7 +31,7 @@ final class AIPrefsPane: NSView, NSTextFieldDelegate, NSComboBoxDelegate {
 
         let hint = NSTextField(wrappingLabelWithString:
             "AI 搜索和 AI 指令使用 OpenAI 兼容接口（混元、DeepSeek、通义千问、Kimi、OpenAI 等均可）。"
-            + "API Key 保存在系统钥匙串中，不会写入配置文件。")
+            + "API Key 保存在本机的配置文件里，不需要输入系统密码。")
         hint.font = NSFont.systemFont(ofSize: 11)
         hint.textColor = .secondaryLabelColor
         hint.frame = NSRect(x: pad, y: y, width: W - pad * 2, height: 32)
@@ -180,7 +180,7 @@ final class AIPrefsPane: NSView, NSTextFieldDelegate, NSComboBoxDelegate {
         addSubview(clear)
 
         let usage = NSTextField(wrappingLabelWithString:
-            "用法：在剪贴板面板（输入框）里输入问题，按 ⌘1 进行 AI 搜索；输入框为空时处理选中的条目，选中图片可识别图片。"
+            "用法：在文件搜索的输入框里输入问题，按 ⌘1 进行 AI 搜索；输入框为空时处理剪贴板里的内容，剪贴板里是图片时可识别图片。"
             + "⌘1–9 对应的 AI 指令可在「快捷搜索」页调整。")
         usage.font = NSFont.systemFont(ofSize: 11)
         usage.textColor = .secondaryLabelColor

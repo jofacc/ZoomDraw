@@ -37,6 +37,7 @@ struct HotkeyBinding: Codable, Equatable {
             42:"\\", 41:";", 39:"'", 43:",", 47:".", 44:"/", 33:"[", 30:"]",
             27:"-", 24:"=", 50:"`", 10:"§",
             123:"←", 124:"→", 125:"↓", 126:"↑",
+            116:"PageUp", 121:"PageDown", 115:"Home", 119:"End", 117:"⌦", 76:"⌅",
             122:"F1", 120:"F2", 99:"F3", 118:"F4", 96:"F5", 97:"F6", 98:"F7", 100:"F8", 101:"F9", 109:"F10", 103:"F11", 111:"F12"
         ]
         return map[code] ?? "Key#\(code)"
@@ -50,6 +51,7 @@ enum HotkeyAction: String, CaseIterable {
     case shelf = "hotkey.shelf"
     case shelfPaste = "hotkey.shelfPaste"
     case clipboard = "hotkey.clipboard"
+    case fileSearch = "hotkey.fileSearch"
     case windowSwitcher = "hotkey.windowSwitcher"
     case dockPreview = "hotkey.dockPreview"
 
@@ -61,6 +63,7 @@ enum HotkeyAction: String, CaseIterable {
         case .shelf: return "暂存板"
         case .shelfPaste: return "剪贴板存入暂存板"
         case .clipboard: return "剪贴板历史"
+        case .fileSearch: return "文件搜索"
         case .windowSwitcher: return "窗口切换器"
         case .dockPreview: return "开/关 程序坞预览"
         }
@@ -81,6 +84,8 @@ enum HotkeyAction: String, CaseIterable {
                                  modifiers: NSEvent.ModifierFlags([.option, .shift]).rawValue)
         case .clipboard: // Command+\
             return HotkeyBinding(keyCode: 42, modifiers: NSEvent.ModifierFlags.command.rawValue)
+        case .fileSearch: // Option+Space
+            return HotkeyBinding(keyCode: 49, modifiers: NSEvent.ModifierFlags.option.rawValue)
         case .windowSwitcher: // Option+Tab
             return HotkeyBinding(keyCode: 48, modifiers: NSEvent.ModifierFlags.option.rawValue)
         case .dockPreview: // 默认不设置
@@ -118,4 +123,5 @@ final class HotkeyConfig {
 
 extension Notification.Name {
     static let hotkeysChanged = Notification.Name("ZoomDraw.hotkeysChanged")
+    static let hotkeyRecordingChanged = Notification.Name("ZoomDraw.hotkeyRecordingChanged")
 }

@@ -56,15 +56,8 @@ final class DockPreviewController: NSObject {
               !UserDefaults.standard.bool(forKey: key) else { return }
         UserDefaults.standard.set(true, forKey: key)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            NSApp.activate(ignoringOtherApps: true)
-            let alert = NSAlert()
-            alert.messageText = "程序坞预览需要「辅助功能」权限"
-            alert.informativeText = "用于识别鼠标停在哪个程序坞图标上，以及切换、关闭、最小化窗口。\n授权后无需重启，几秒内自动生效。也可以在「偏好设置 → 程序坞」中关闭此功能。"
-            alert.addButton(withTitle: "去授权")
-            alert.addButton(withTitle: "稍后")
-            if alert.runModal() == .alertFirstButtonReturn {
-                ClipboardController.requestAccessibility()
-            }
+            ScreenshotToast.show("程序坞预览需要「辅助功能」权限，授权后几秒内自动生效", duration: 2.6)
+            Permissions.requestAccessibility()
         }
     }
 

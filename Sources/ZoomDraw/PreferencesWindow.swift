@@ -6,7 +6,7 @@ final class PreferencesWindowController: NSWindowController {
 
     private var rows: [HotkeyAction: HotkeyRecorderField] = [:]
 
-    private static let winSize = NSSize(width: 540, height: 540)
+    private static let winSize = NSSize(width: 600, height: 560)
 
     private convenience init() {
         let win = NSWindow(contentRect: NSRect(origin: .zero, size: PreferencesWindowController.winSize),
@@ -28,7 +28,7 @@ final class PreferencesWindowController: NSWindowController {
         }
     }
 
-    /// 打开并切换到指定标签页（hotkeys / shelf / clipboard / dock / websearch / ai）
+    /// 打开并切换到指定标签页（hotkeys / shelf / clipboard / filesearch / dock / websearch / ai）
     func show(tab: String) {
         tabView?.selectTabViewItem(withIdentifier: tab)
         show()
@@ -57,6 +57,11 @@ final class PreferencesWindowController: NSWindowController {
         clipItem.label = "剪贴板"
         clipItem.view = ClipboardPrefsPane(frame: NSRect(origin: .zero, size: tabs.contentRect.size))
         tabs.addTabViewItem(clipItem)
+
+        let fileItem = NSTabViewItem(identifier: "filesearch")
+        fileItem.label = "文件搜索"
+        fileItem.view = FileSearchPrefsPane(frame: NSRect(origin: .zero, size: tabs.contentRect.size))
+        tabs.addTabViewItem(fileItem)
 
         let dockItem = NSTabViewItem(identifier: "dock")
         dockItem.label = "程序坞"
@@ -229,10 +234,26 @@ final class HotkeyRecorderField: NSView {
         didSet { needsDisplay = true }
     }
     var onChange: ((HotkeyBinding) -> Void)?
+    /// 允许不带修饰键，但只限 PageUp / 方向键 / F 键这类功能键（普通字母键仍需要修饰键，避免影响打字）
+    var allowsFunctionKeyAlone = false
 
     private var recording = false {
-        didSet { needsDisplay = true; window?.invalidateCursorRects(for: self) }
+        didSet {
+            needsDisplay = true
+            window?.invalidateCursorRects(for: self)
+            if recording != oldValue { HotkeyRecorderField.setRecording(recording) }
+        }
     }
+
+    /// 录制期间暂停 ZoomDraw 自己的全局快捷键，否则已占用的组合（如 ⌘1）会被直接触发，录不进来
+    static private(set) var isRecordingAny = false
+    private static func setRecording(_ on: Bool) {
+        guard isRecordingAny != on else { return }
+        isRecordingAny = on
+        NotificationCenter.default.post(name: .hotkeyRecordingChanged, object: nil)
+    }
+
+    private var resignObserver: NSObjectProtocol?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -241,6 +262,22 @@ final class HotkeyRecorderField: NSView {
         layer?.borderWidth = 1
     }
     required init?(coder: NSCoder) { fatalError() }
+
+    deinit {
+        if let o = resignObserver { NotificationCenter.default.removeObserver(o) }
+    }
+
+    /// 窗口失去焦点 / 关闭时结束录制，避免全局快捷键一直处于暂停状态
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if let o = resignObserver { NotificationCenter.default.removeObserver(o); resignObserver = nil }
+        guard let w = window else { recording = false; return }
+        resignObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didResignKeyNotification, object: w, queue: .main) { [weak self] _ in
+                guard let self = self, self.recording else { return }
+                self.window?.makeFirstResponder(nil)
+            }
+    }
 
     override var acceptsFirstResponder: Bool { true }
     override func becomeFirstResponder() -> Bool {
@@ -272,29 +309,54 @@ final class HotkeyRecorderField: NSView {
         s.draw(at: NSPoint(x: 10, y: (bounds.height - size.height) / 2), withAttributes: attrs)
     }
 
+    /// 带 ⌘ 等修饰键的按键先走这里。放在标签页（NSTabView）里时，⌘Space 会在这一步之后被吞掉、
+    /// 到不了 keyDown，所以录制状态下直接在这里处理
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        guard recording, event.type == .keyDown, window?.firstResponder === self else {
+            return super.performKeyEquivalent(with: event)
+        }
+        record(event)
+        return true
+    }
+
     override func keyDown(with event: NSEvent) {
-        guard recording else { return }
+        guard recording else { super.keyDown(with: event); return }
+        record(event)
+    }
+
+    private func record(_ event: NSEvent) {
         // 仅允许常见修饰键
         let mods = event.modifierFlags.intersection([.command, .option, .control, .shift])
-        // 不带修饰键按 ⌫ / ⌦：清除快捷键
-        if mods.isEmpty && (event.keyCode == 51 || event.keyCode == 117) {
-            binding = .none
-            onChange?(.none)
+        if mods.isEmpty, allowsFunctionKeyAlone, Self.isFunctionKey(event) {
+            let new = HotkeyBinding(keyCode: UInt32(event.keyCode), modifiers: 0)
+            binding = new
+            onChange?(new)
             window?.makeFirstResponder(nil)
             return
         }
-        // 至少要一个修饰键，避免误触
-        guard !mods.isEmpty else {
-            NSSound.beep(); return
-        }
-        // ESC 取消录制
-        if event.keyCode == 53 {
-            window?.makeFirstResponder(nil); return
+        if mods.isEmpty {
+            switch event.keyCode {
+            case 51, 117:   // ⌫ / ⌦：清除快捷键
+                binding = .none
+                onChange?(.none)
+                window?.makeFirstResponder(nil)
+            case 53:        // Esc：取消录制
+                window?.makeFirstResponder(nil)
+            default:        // 至少要一个修饰键，避免误触
+                NSSound.beep()
+            }
+            return
         }
         let new = HotkeyBinding(keyCode: UInt32(event.keyCode), modifiers: mods.rawValue)
         binding = new
         onChange?(new)
         window?.makeFirstResponder(nil)
+    }
+
+    /// 功能键（PageUp / PageDown / Home / End / 方向键 / F1–F20）的字符落在 Unicode 私有区 0xF700–0xF8FF
+    private static func isFunctionKey(_ e: NSEvent) -> Bool {
+        guard let u = e.charactersIgnoringModifiers?.unicodeScalars.first else { return false }
+        return (0xF700...0xF8FF).contains(u.value)
     }
 
     override func resetCursorRects() {

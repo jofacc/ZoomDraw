@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ClipboardSettings.registerDefaults()
         DockSettings.registerDefaults()
         AISettings.registerDefaults()
+        FileSearchSettings.registerDefaults()
         setupStatusItem()
         applyHotkeys()
         NotificationCenter.default.addObserver(self,
@@ -33,24 +34,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ShelfController.shared.startup()
         ClipboardStore.shared.startup()
         DockPreviewController.shared.startup()
-        // 剪贴板面板打开期间暂停其他全局快捷键（只保留开关面板的那个），
-        // 否则设成 ⌘1、⌥2 之类的全局快捷键会抢走面板里的网页搜索 / 快速粘贴
+        // 剪贴板 / 文件搜索面板打开期间暂停其他全局快捷键（只保留开关面板的那两个），
+        // 否则设成 ⌘1、⌥2 之类的全局快捷键会抢走文件搜索里的 ⌘1–9 快捷搜索 / 剪贴板里的快速粘贴。
+        // 注意：回调发出时窗口可能还没显示（isVisible 仍为 false），所以用回调传来的状态
         ClipboardController.shared.onVisibilityChanged = { [weak self] visible in
-            self?.updateHotkeySuspension(panelVisible: visible)
+            self?.clipPanelVisible = visible
+            self?.refreshHotkeySuspension()
+        }
+        FileSearchController.shared.onVisibilityChanged = { [weak self] visible in
+            self?.fileSearchVisible = visible
+            self?.refreshHotkeySuspension()
+        }
+        // 偏好设置里录制快捷键期间暂停全部全局快捷键，已占用的组合也能录进来
+        NotificationCenter.default.addObserver(forName: .hotkeyRecordingChanged, object: nil, queue: .main) { [weak self] _ in
+            self?.refreshHotkeySuspension()
         }
     }
 
-    private func updateHotkeySuspension(panelVisible: Bool) {
-        if panelVisible {
-            hotkeys.suspend(except: Set([hotkeyIDs[.clipboard]].compactMap { $0 }))
-        } else {
-            hotkeys.resume()
+    private var clipPanelVisible = false
+    private var fileSearchVisible = false
+
+    private func refreshHotkeySuspension() {
+        // 先全部恢复，再按当前状态重新暂停（保留集合可能变化）
+        hotkeys.resume()
+        if HotkeyRecorderField.isRecordingAny {
+            hotkeys.suspend(except: [])
+        } else if clipPanelVisible || fileSearchVisible {
+            hotkeys.suspend(except: Set([hotkeyIDs[.clipboard], hotkeyIDs[.fileSearch]].compactMap { $0 }))
         }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         ClipboardStore.shared.flush()
         AIHistoryStore.shared.flush()
+        FileSearchUsage.shared.flush()
     }
 
     /// 关键：关闭最后一个窗口不要退出 app（菜单栏应用必须）
@@ -119,6 +136,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(makeItem("粘贴到暂存板" + keySuffix(.shelfPaste), action: #selector(shelfPaste)))
         menu.addItem(.separator())
 
+        menu.addItem(makeItem("文件搜索" + keySuffix(.fileSearch), action: #selector(triggerFileSearch)))
+        menu.addItem(.separator())
+
         let clipStore = ClipboardStore.shared
         let clipState = !ClipboardSettings.enabled ? " · 已关闭" : (clipStore.isPaused ? " · 已暂停" : "")
         menu.addItem(makeItem("剪贴板历史\(clipState)" + keySuffix(.clipboard), action: #selector(triggerClipboard)))
@@ -180,6 +200,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case .shelf: handler = { [weak self] in self?.triggerShelf() }
             case .shelfPaste: handler = { [weak self] in self?.shelfPaste() }
             case .clipboard: handler = { [weak self] in self?.triggerClipboard() }
+            case .fileSearch: handler = { [weak self] in self?.triggerFileSearch() }
             case .windowSwitcher: handler = { WindowSwitcherController.shared.hotkeyPressed() }
             case .dockPreview: handler = { DockPreviewController.shared.toggleEnabled() }
             }
@@ -188,7 +209,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 hotkeyIDs[action] = id
             }
         }
-        if ClipboardController.shared.isVisible { updateHotkeySuspension(panelVisible: true) }
+        refreshHotkeySuspension()
     }
 
     @objc private func onHotkeysChanged() {
@@ -249,7 +270,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func triggerClipboard() {
+        if FileSearchController.shared.isVisible { FileSearchController.shared.hide() }
         ClipboardController.shared.toggle()
+    }
+
+    @objc private func triggerFileSearch() {
+        if ClipboardController.shared.isVisible { ClipboardController.shared.hide() }
+        FileSearchController.shared.toggle()
     }
 
     @objc private func clipPause(_ sender: NSMenuItem) {

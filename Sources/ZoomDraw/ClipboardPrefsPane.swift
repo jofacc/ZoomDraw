@@ -10,6 +10,7 @@ final class ClipboardPrefsPane: NSView, NSTableViewDataSource, NSTableViewDelega
     private let ignoreTable = NSTableView()
     private var ignored: [String] = ClipboardSettings.ignoredApps
     private var keyObserver: NSObjectProtocol?
+    private var permObserver: NSObjectProtocol?
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -20,15 +21,21 @@ final class ClipboardPrefsPane: NSView, NSTableViewDataSource, NSTableViewDelega
 
     deinit {
         if let o = keyObserver { NotificationCenter.default.removeObserver(o) }
+        if let o = permObserver { NotificationCenter.default.removeObserver(o) }
     }
 
     /// 切到本页 / 从系统设置回来时刷新权限状态
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if let o = keyObserver { NotificationCenter.default.removeObserver(o); keyObserver = nil }
+        if let o = permObserver { NotificationCenter.default.removeObserver(o); permObserver = nil }
         guard let w = window else { return }
         keyObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.didBecomeKeyNotification, object: w, queue: .main) { [weak self] _ in
+                self?.refreshStatus()
+            }
+        permObserver = NotificationCenter.default.addObserver(
+            forName: .permissionsChanged, object: nil, queue: .main) { [weak self] _ in
                 self?.refreshStatus()
             }
         refreshStatus()

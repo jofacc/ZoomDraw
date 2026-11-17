@@ -1,9 +1,8 @@
 import AppKit
-import Security
 
 // MARK: - 设置
 
-/// AI 接口设置（OpenAI 兼容）。API Key 存在系统钥匙串，不写入偏好设置文件
+/// AI 接口设置（OpenAI 兼容）。API Key 保存在偏好设置文件里（不使用系统钥匙串，免去输入系统密码）
 enum AISettings {
     private static let d = UserDefaults.standard
 
@@ -60,40 +59,15 @@ enum AISettings {
         set { d.set(newValue, forKey: "ai.historyEnabled") }
     }
 
-    // MARK: Key（钥匙串）
-    private static let service = "com.zoomdraw.app.ai"
-    private static let account = "api-key"
-    private static var cachedKey: String?
-
+    // MARK: Key
+    /// 直接保存在偏好设置文件里（不用系统钥匙串，避免首次使用时弹出输入系统密码的提示）
     static var apiKey: String {
-        get {
-            if let k = cachedKey { return k }
-            var q = baseQuery
-            q[kSecReturnData as String] = true
-            q[kSecMatchLimit as String] = kSecMatchLimitOne
-            var out: CFTypeRef?
-            let k = SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess
-                ? (out as? Data).flatMap { String(data: $0, encoding: .utf8) } ?? "" : ""
-            cachedKey = k
-            return k
-        }
+        get { d.string(forKey: "ai.apiKey") ?? "" }
         set {
             let v = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-            SecItemDelete(baseQuery as CFDictionary)
-            if !v.isEmpty {
-                var q = baseQuery
-                q[kSecValueData as String] = Data(v.utf8)
-                q[kSecAttrLabel as String] = "ZoomDraw AI API Key"
-                q[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-                SecItemAdd(q as CFDictionary, nil)
-            }
-            cachedKey = v
+            if v.isEmpty { d.removeObject(forKey: "ai.apiKey") } else { d.set(v, forKey: "ai.apiKey") }
             changed()
         }
-    }
-    private static var baseQuery: [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
-         kSecAttrAccount as String: account]
     }
 
     static var isConfigured: Bool { chatURL != nil && !model.isEmpty && !apiKey.isEmpty }

@@ -15,9 +15,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>3.0.1</string>
+	<string>4.1.1</string>
 	<key>CFBundleVersion</key>
-	<string>17</string>
+	<string>20</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>13.0</string>
 	<key>LSUIElement</key>
@@ -28,5 +28,7 @@
 	<string>NSApplication</string>
 	<key>NSScreenCaptureUsageDescription</key>
 	<string>ZoomDraw 需要屏幕录制权限来捕获屏幕内容，用于放大显示、截图与录屏。</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>ZoomDraw 需要控制访达，用于在文件搜索中打开「显示简介」窗口。</string>
 </dict>
 </plist>

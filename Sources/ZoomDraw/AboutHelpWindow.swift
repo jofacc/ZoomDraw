@@ -54,7 +54,7 @@ final class AboutHelpWindowController: NSWindowController {
         versionLabel.frame = NSRect(x: 104, y: 44, width: 300, height: 16)
         header.addSubview(versionLabel)
 
-        let desc = NSTextField(labelWithString: "轻量的屏幕放大、截图、录屏、标注、文件暂存、剪贴板历史与窗口预览工具")
+        let desc = NSTextField(labelWithString: "轻量的屏幕放大、截图、录屏、标注、文件搜索、文件暂存、剪贴板历史与窗口预览工具")
         desc.font = NSFont.systemFont(ofSize: 12)
         desc.frame = NSRect(x: 104, y: 24, width: W - 104 - 20, height: 16)
         desc.autoresizingMask = [.width]
@@ -115,6 +115,7 @@ final class AboutHelpWindowController: NSWindowController {
                 "\(key(.shelf))  开/关 暂存板",
                 "\(key(.shelfPaste))  剪贴板内容存入暂存板",
                 "\(key(.clipboard))  开/关 剪贴板历史",
+                "\(key(.fileSearch))  开/关 文件搜索",
                 "\(key(.windowSwitcher))  窗口切换器",
                 "\(key(.dockPreview))  开/关 程序坞预览",
             ]),
@@ -148,6 +149,20 @@ final class AboutHelpWindowController: NSWindowController {
                 "双击打开 · Delete 移除 · ⌘A 全选 · ⌘C 复制 · ⌘V 粘贴",
                 "右键：在 Finder 中显示 / 清理失效条目 / 清空",
             ]),
+            ("文件搜索（\(key(.fileSearch)) 唤出，类似 Alfred / Spotlight）", [
+                "直接输入按文件名搜索应用和文件；常选的结果会自动排到前面",
+                "输入框为空时按空格（自动变成 '）只搜文件夹",
+                "in 关键词：搜文件正文并显示命中片段 · tags 标签名：按访达标签搜（需在设置中开启）",
+                "以 / 或 ~ 开头浏览文件夹：→ 或 ⌘↓ 进入 · ← 或 ⌘↑ 返回上一级 · Tab 补全路径",
+                "⏎ 打开 · ⌘⏎ 打开所在目录 · ⌥1–9 打开第 N 个 · ⌘C 复制路径 · ⌥⌘C 复制文件",
+                "→ 或 ⌘K 打开操作菜单：打开方式、移动到、复制到、重命名、移到废纸篓、在终端中打开、显示简介、退出应用…",
+                "⌥↓ 加入已选文件，⌥→ 对已选文件批量操作，⌥← 移除最后一个",
+                "PageUp / PageDown 翻页（可在「偏好设置 → 文件搜索」中自定义）",
+                "移到废纸篓后 2 分钟内可按 ⌘Z 撤销",
+                "右侧显示选中文件的预览（可在「偏好设置 → 文件搜索」中关闭）",
+                "⌘1–9 网页 / AI 搜索（输入框为空时处理剪贴板里的文字、图片或文件）· ⌘H AI 历史",
+                "搜索范围、排除规则、结果数等在「偏好设置 → 文件搜索」中调整",
+            ]),
             ("剪贴板历史", [
                 "自动记录复制过的文本、链接、颜色、图片、文件",
                 "打开后直接输入即可搜索；Tab / ⇧Tab 切换分类",
@@ -156,15 +171,15 @@ final class AboutHelpWindowController: NSWindowController {
                 "条目可直接拖到其他应用",
                 "菜单栏「剪贴板记录」可暂停记录或清除最近记录",
             ]),
-            ("AI 搜索与快捷搜索（在剪贴板历史的输入框中使用）", [
+            ("AI 搜索与快捷搜索（在文件搜索的输入框中使用）", [
                 "输入内容后按 ⌘1–⌘9：默认 ⌘1 AI 搜索 · ⌘2 百度地图 · ⌘3 翻译 · ⌘4 解释 · ⌘5 总结 · ⌘6 润色 · ⌘7 识别图片",
-                "输入框为空时处理当前选中的条目；选中图片时由 AI 识别图片",
+                "输入框为空时处理剪贴板里的内容；剪贴板里是图片时由 AI 识别图片",
                 "AI 搜索：联网搜索（搜狗 / 360 / DuckDuckGo 的标题和摘要）后由 AI 回答，标注来源角标，悬停查看、点击打开",
                 "回答界面：⏎ 追问 · 输入框为空时 ⏎ 粘贴回答 · ⇧⏎ 粘贴 Markdown · ⌘C 复制 · ⌘P 钉住为独立窗口 · ⌘R 重新生成 · Esc 停止 / 返回",
-                "AI 历史在分类「✦ AI 历史」中，⏎ 打开后可继续追问",
-                "需先在「偏好设置 → AI」中填写接口地址、API Key（保存在钥匙串）和模型",
+                "按 ⌘H 查看 AI 历史，⏎ 打开后可继续追问",
+                "需先在「偏好设置 → AI」中填写接口地址、API Key 和模型（保存在本机配置文件，无需系统密码）",
                 "模板在「偏好设置 → 快捷搜索」中添加、修改、排序；可自定义 AI 指令的提示词",
-                "面板打开期间 ZoomDraw 的其他全局快捷键暂停，⌘1–9 一定用于快捷搜索",
+                "文件搜索打开期间 ZoomDraw 的其他全局快捷键暂停，⌘1–9 一定用于快捷搜索",
             ]),
             ("程序坞预览", [
                 "鼠标停在程序坞图标上，弹出该应用所有窗口的缩略图（程序坞在左/右侧时显示在旁边）",
@@ -187,6 +202,7 @@ final class AboutHelpWindowController: NSWindowController {
             ("权限", [
                 "放大 / 截图 / 录屏：需要「屏幕录制」权限",
                 "剪贴板自动粘贴：需要「辅助功能」权限；未授权时只复制",
+                "文件搜索的「显示简介」：首次使用时需允许 ZoomDraw 控制「访达」（自动化）",
                 "程序坞预览 / 窗口切换器：需要「辅助功能」权限；缩略图画面需要「屏幕录制」权限，未授权时显示应用图标",
                 "均在 系统设置 → 隐私与安全性 中勾选 ZoomDraw",
             ]),

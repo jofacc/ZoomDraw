@@ -12,6 +12,7 @@ final class DockPrefsPane: NSView, NSTableViewDataSource, NSTableViewDelegate {
     private let ignoreTable = NSTableView()
     private var ignored: [String] = DockSettings.ignoredApps
     private var keyObserver: NSObjectProtocol?
+    private var permObserver: NSObjectProtocol?
     private var hotkeyObserver: NSObjectProtocol?
 
     override init(frame: NSRect) {
@@ -24,15 +25,20 @@ final class DockPrefsPane: NSView, NSTableViewDataSource, NSTableViewDelegate {
     required init?(coder: NSCoder) { fatalError() }
 
     deinit {
-        [keyObserver, hotkeyObserver].compactMap { $0 }.forEach(NotificationCenter.default.removeObserver)
+        [keyObserver, hotkeyObserver, permObserver].compactMap { $0 }.forEach(NotificationCenter.default.removeObserver)
     }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if let o = keyObserver { NotificationCenter.default.removeObserver(o); keyObserver = nil }
+        if let o = permObserver { NotificationCenter.default.removeObserver(o); permObserver = nil }
         guard let w = window else { return }
         keyObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.didBecomeKeyNotification, object: w, queue: .main) { [weak self] _ in
+                self?.refreshStatus()
+            }
+        permObserver = NotificationCenter.default.addObserver(
+            forName: .permissionsChanged, object: nil, queue: .main) { [weak self] _ in
                 self?.refreshStatus()
             }
         refreshStatus()
@@ -206,12 +212,7 @@ final class DockPrefsPane: NSView, NSTableViewDataSource, NSTableViewDelegate {
 
     @objc private func requestAX() { ClipboardController.requestAccessibility() }
 
-    @objc private func requestSR() {
-        CGRequestScreenCaptureAccess()
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
-            NSWorkspace.shared.open(url)
-        }
-    }
+    @objc private func requestSR() { Permissions.requestScreenRecording() }
 
     @objc private func addIgnoredApp() {
         let panel = NSOpenPanel()
