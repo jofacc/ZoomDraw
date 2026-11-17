@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotkeyIDs: [HotkeyAction: UInt32] = [:]
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Permissions.noteLaunchState()
         ClipboardSettings.registerDefaults()
         DockSettings.registerDefaults()
         AISettings.registerDefaults()

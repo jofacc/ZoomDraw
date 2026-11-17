@@ -28,7 +28,7 @@ final class PreferencesWindowController: NSWindowController {
         }
     }
 
-    /// 打开并切换到指定标签页（hotkeys / shelf / clipboard / filesearch / dock / websearch / ai）
+    /// 打开并切换到指定标签页（hotkeys / shelf / clipboard / filesearch / dock / websearch / ai / permissions）
     func show(tab: String) {
         tabView?.selectTabViewItem(withIdentifier: tab)
         show()
@@ -77,6 +77,11 @@ final class PreferencesWindowController: NSWindowController {
         aiItem.label = "AI"
         aiItem.view = AIPrefsPane(frame: NSRect(origin: .zero, size: tabs.contentRect.size))
         tabs.addTabViewItem(aiItem)
+
+        let permItem = NSTabViewItem(identifier: "permissions")
+        permItem.label = "权限"
+        permItem.view = PermissionsPrefsPane(frame: NSRect(origin: .zero, size: tabs.contentRect.size))
+        tabs.addTabViewItem(permItem)
 
         content.addSubview(tabs)
     }

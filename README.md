@@ -1,6 +1,6 @@
 # ZoomDraw
 
-![version](https://img.shields.io/badge/version-4.1.1-blue) ![platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey) ![license](https://img.shields.io/badge/license-MIT-green)
+![version](https://img.shields.io/badge/version-4.2.0-blue) ![platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey) ![license](https://img.shields.io/badge/license-MIT-green)
 
 一个轻量的 macOS 屏幕**放大 + 截图 + 录屏 + 标注 + 文件搜索 + 文件暂存 + 剪贴板历史 + 窗口预览**小工具。
 
@@ -253,6 +253,8 @@
 
 > ⚠️ 首次使用「放大 / 截图 / 录屏」时，macOS 会请求**屏幕录制**权限：
 > 系统设置 → 隐私与安全性 → 屏幕录制 → 勾选 ZoomDraw → 重新启动应用。
+>
+> 所有权限可在「偏好设置 → 权限」页集中查看：每项是否已授权、哪些功能需要它、未授权的影响，并可一键授权（屏幕录制授权后可直接点「重启应用」）。
 
 ---
 
@@ -280,7 +282,7 @@ bash build.sh
 
 产物位于 `dist/`：
 - `ZoomDraw.app` — 应用本体
-- `ZoomDraw-4.1.1.dmg` — 分发镜像
+- `ZoomDraw-4.2.0.dmg` — 分发镜像
 
 ---
 
@@ -315,7 +317,8 @@ bash build.sh
 │   ├── FileSearchView.swift        # 文件搜索主界面（搜索 / 操作菜单 / 已选文件 / AI 回答）
 │   ├── FileActions.swift           # 文件操作（打开方式、移动、复制、重命名、废纸篓与撤销…）
 │   ├── HintText.swift              # 底部快捷键提示的统一样式
-│   ├── Permissions.swift           # 辅助功能 / 屏幕录制权限的统一请求入口
+│   ├── Permissions.swift           # 系统权限的状态检测与统一请求入口
+│   ├── PermissionsPrefsPane.swift  # 偏好设置「权限」标签页（授权总览）
 │   ├── FilePreviewPane.swift       # 文件搜索右侧的文件预览
 │   ├── FileSnippet.swift           # 正文搜索命中片段
 │   ├── FileSearchPrefsPane.swift   # 偏好设置「文件搜索」标签页
