@@ -106,8 +106,6 @@ final class ScreenshotView: NSView {
 
     /// 当前选区（该屏幕的本地坐标，左下原点）
     var selectionRect: NSRect { selection.integral }
-    /// 是否已确认选区
-    var hasSelection: Bool { phase == .selected && !selection.isEmpty }
 
     // MARK: - 初始化
     init(snapshot: CGImage, screen: NSScreen) {

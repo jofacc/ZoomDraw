@@ -628,38 +628,3 @@ final class SpotlightRunner {
         onUpdate = nil
     }
 }
-
-// MARK: - Spotlight 索引检测（偏好设置里显示「已索引 / 未索引」）
-
-enum IndexProbe {
-    private static var running: [NSMetadataQuery] = []
-
-    /// 取文件夹里的几个条目，看 Spotlight 能否按名字找到；completion(nil) 表示无法判断（空文件夹 / 超时）
-    static func check(_ folder: String, completion: @escaping (Bool?) -> Void) {
-        let fm = FileManager.default
-        let kids = ((try? fm.contentsOfDirectory(atPath: folder)) ?? [])
-            .filter { !$0.hasPrefix(".") && !$0.hasPrefix("Icon") }.prefix(3)
-        guard !kids.isEmpty else { completion(nil); return }
-        let q = NSMetadataQuery()
-        q.predicate = NSPredicate(fromMetadataQueryString: kids.map {
-            "kMDItemFSName == \"\(SpotlightRunner.escape($0))\""
-        }.joined(separator: " || "))
-        q.searchScopes = [folder]
-        running.append(q)
-        var done = false
-        var token: NSObjectProtocol?
-        func end(_ r: Bool?) {
-            guard !done else { return }
-            done = true
-            q.stop()
-            if let t = token { NotificationCenter.default.removeObserver(t) }
-            running.removeAll { $0 === q }
-            completion(r)
-        }
-        token = NotificationCenter.default.addObserver(forName: .NSMetadataQueryDidFinishGathering, object: q, queue: .main) { _ in
-            end(q.resultCount > 0)
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 4) { end(q.resultCount > 0 ? true : nil) }
-        if !q.start() { end(nil) }
-    }
-}

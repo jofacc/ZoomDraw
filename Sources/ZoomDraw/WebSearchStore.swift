@@ -119,8 +119,6 @@ enum WebSearch {
         Array(engines.filter { $0.enabled && $0.isValid }.prefix(maxShortcuts))
     }
 
-    static func resetToPresets() { engines = presets }
-
     /// v2.8 → v3.0：没改过预置列表的直接换成新预置；改过的保留原有顺序和勾选，
     /// 在最前面加「AI 搜索」（取代百度），后面补上 AI 指令（快捷键还有空位时才勾选）
     static func migrateFromV2(_ old: [WebSearchEngine]) -> [WebSearchEngine] {
@@ -243,46 +241,6 @@ enum WebSearch {
             return true
         }
         return NSWorkspace.shared.open(url)
-    }
-
-    /// 把剪贴板条目转成搜索关键字：文本 / 链接 / 颜色取文字（多行合并为一行），文件取文件名；图片返回 nil
-    static func query(from item: ClipItem) -> String? {
-        let raw: String
-        switch item.kind {
-        case .text, .link, .color:
-            raw = ClipboardStore.shared.fullText(of: item)
-        case .file:
-            guard let first = item.fileURLs.first else { return nil }
-            raw = first.deletingPathExtension().lastPathComponent
-        case .image:
-            return nil
-        }
-        let line = raw.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).joined(separator: " ")
-        let s = String(line.prefix(1000))
-        return s.isEmpty ? nil : s
-    }
-
-    /// AI 指令的输入：保留换行的全文；文本类小文件读取内容，其他文件用文件名；图片返回 nil（另行识图）
-    static func aiInput(from item: ClipItem) -> String? {
-        let maxLen = 60_000
-        var raw: String
-        switch item.kind {
-        case .text, .link, .color:
-            raw = ClipboardStore.shared.fullText(of: item)
-        case .file:
-            guard let first = item.existingFileURLs.first ?? item.fileURLs.first else { return nil }
-            raw = first.lastPathComponent
-            if let type = try? first.resourceValues(forKeys: [.contentTypeKey, .fileSizeKey]),
-               type.contentType?.conforms(to: .text) == true, (type.fileSize ?? .max) < 400_000,
-               let s = try? String(contentsOf: first, encoding: .utf8) {
-                raw = "文件《\(first.lastPathComponent)》的内容：\n\n" + s
-            }
-        case .image:
-            return nil
-        }
-        raw = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        if raw.count > maxLen { raw = String(raw.prefix(maxLen)) + "\n…（内容过长，已截断）" }
-        return raw.isEmpty ? nil : raw
     }
 }
 

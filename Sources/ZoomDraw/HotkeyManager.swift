@@ -38,14 +38,6 @@ final class HotkeyManager {
         UnregisterEventHotKey(ref)
     }
 
-    func unregisterAll() {
-        for (_, reg) in registrations {
-            if let ref = reg.ref { UnregisterEventHotKey(ref) }
-        }
-        registrations.removeAll()
-        suspended.removeAll()
-    }
-
     // MARK: 临时暂停
 
     /// 暂停除 `keep` 以外的全部快捷键：向系统注销，让按键能送到本应用当前的窗口（例如剪贴板面板里的 ⌘1–9）
@@ -66,8 +58,6 @@ final class HotkeyManager {
         }
         suspended.removeAll()
     }
-
-    var isSuspended: Bool { !suspended.isEmpty }
 
     // MARK: 内部
 

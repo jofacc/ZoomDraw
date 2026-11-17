@@ -27,8 +27,6 @@ enum Permissions {
 
     // MARK: 屏幕录制
 
-    static var screenRecordingGranted: Bool { CGPreflightScreenCaptureAccess() }
-
     static func requestScreenRecording() {
         guard !CGPreflightScreenCaptureAccess() else { return }
         if d.bool(forKey: "perm.srRequested") {

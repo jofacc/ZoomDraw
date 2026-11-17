@@ -88,8 +88,6 @@ final class ShelfController {
 
     var isVisible: Bool { window?.isVisible == true }
     var isCollapsed: Bool { collapsedEdge != nil }
-    /// 是否停靠在某条边（含展开中的停靠状态）
-    var isDocked: Bool { dockedEdge != nil }
 
     private init() {}
 

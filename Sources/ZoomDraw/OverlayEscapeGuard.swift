@@ -19,8 +19,6 @@ final class OverlayEscapeGuard {
         self.hotkeys = hotkeys
     }
 
-    var isArmed: Bool { onForceExit != nil }
-
     /// onEscape：普通 Esc（交给遮罩按原有逻辑处理）；onForceExit：连按 3 次时强制关闭
     func arm(onEscape: @escaping () -> Void, onForceExit: @escaping () -> Void) {
         disarm()

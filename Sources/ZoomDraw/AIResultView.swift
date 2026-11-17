@@ -68,8 +68,6 @@ final class AIResultView: NSView, WKScriptMessageHandler, WKNavigationDelegate {
         webView.evaluateJavaScript("String(window.getSelection())") { r, _ in cb(r as? String ?? "") }
     }
 
-    func focusWeb() { window?.makeFirstResponder(webView) }
-
     // MARK: 数据
 
     private func payload(_ k: Int) -> [String: Any] {

@@ -72,11 +72,6 @@ enum StrokeRenderer {
         ]
     }
 
-    static func textSize(_ s: Stroke) -> NSSize {
-        let str = s.text.isEmpty ? " " : s.text
-        return (str as NSString).size(withAttributes: textAttributes(color: s.color, size: s.fontSize))
-    }
-
     private static func drawArrow(from p1: NSPoint, to p2: NSPoint, width: CGFloat, ctx: CGContext) {
         ctx.move(to: p1); ctx.addLine(to: p2); ctx.strokePath()
         let dx = p2.x - p1.x, dy = p2.y - p1.y

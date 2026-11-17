@@ -26,7 +26,7 @@ EXEC_PATH="$DIST_DIR/$APP_NAME"
 xcrun swiftc -O \
     -framework AppKit -framework Carbon -framework ScreenCaptureKit \
     -framework AVFoundation -framework CoreMedia -framework ImageIO \
-    -framework QuickLookThumbnailing -framework WebKit -framework Security \
+    -framework QuickLookThumbnailing -framework WebKit \
     -o "$EXEC_PATH" \
     Sources/ZoomDraw/*.swift
 
@@ -148,6 +148,8 @@ ln -s /Applications "$STAGE/Applications"
 
 hdiutil create -volname "$DMG_VOL" -srcfolder "$STAGE" -ov -format UDZO "$DMG_PATH"
 rm -rf "$STAGE" "$DMG_TMP"
+# 裸可执行文件只是中间产物（已复制进 .app），删掉避免 dist/ 里堆积
+rm -f "$EXEC_PATH"
 
 echo ""
 echo "✅ 构建完成"

@@ -40,10 +40,6 @@ enum FileSnippet {
         }
     }
 
-    static func cancelAll() {
-        queue.cancelAllOperations()
-    }
-
     // MARK: 提取文字
 
     private static let textExts: Set<String> = [
