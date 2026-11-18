@@ -3,7 +3,7 @@ set -euo pipefail
 
 APP_NAME="ZoomDraw"
 BUNDLE_ID="com.zoomdraw.app"
-VERSION="4.2.0"
+VERSION="4.3.0"
 ARCH=$(uname -m)
 
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"

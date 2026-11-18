@@ -1,4 +1,5 @@
 import AppKit
+import CoreServices
 
 /// 文件搜索的内容：搜索框 + 已选文件 + 结果列表 + 底部提示；也承载 ⌘1–9 的 AI / 网页模板和 AI 回答
 final class FileSearchView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTextFieldDelegate {
@@ -72,6 +73,58 @@ final class FileSearchView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
     }
     private var candidates: [String: Candidate] = [:]
     private var mergedHits = 0
+    /// 每次重新搜索 / 关闭时 +1，后台打分的旧结果据此丢弃
+    private var searchGen = 0
+    private static let scoreQueue = DispatchQueue(label: "zoomdraw.filesearch.score", qos: .userInitiated)
+
+    /// 打分所需的全部输入（值类型副本），可以在后台线程使用
+    private struct ScoreContext {
+        let query: ParsedQuery
+        let queryText: String
+        let usage: [String: FileSearchUsage.Entry]
+        let home: String
+
+        private var isContent: Bool { if case .content = query { return true }; return false }
+
+        func score(path: String) -> (score: Int, ranges: [NSRange])? {
+            let name = (path as NSString).lastPathComponent
+            var s: Int
+            var ranges: [NSRange] = []
+            switch query {
+            case .name(let tokens, _, _), .folders(let tokens):
+                if let m = NameMatcher.match(name, tokens: tokens, stem: (name as NSString).deletingPathExtension) {
+                    s = m.score; ranges = m.ranges
+                } else {
+                    s = 450
+                }
+            case .content(let tokens):
+                s = 500
+                if let m = NameMatcher.match(name, tokens: tokens) { s += 150; ranges = m.ranges }
+            case .tags:
+                s = 500
+            default:
+                return nil
+            }
+            s += FileSearchUsage.boost(usage, path: path, query: queryText)
+            let rel = path.hasPrefix(home) ? path.dropFirst(home.count) : Substring(path)
+            s -= min(rel.filter { $0 == "/" }.count * 3, 45)
+            return (s, ranges)
+        }
+
+        /// 最近使用（正文搜索时用修改时间）的加成；需要读文件属性，较慢，只对少量结果调用
+        func recencyBonus(path: String) -> Int {
+            var date: Date?
+            if let item = MDItemCreate(kCFAllocatorDefault, path as CFString) {
+                date = MDItemCopyAttribute(item, kMDItemLastUsedDate) as? Date
+            }
+            if date == nil, isContent {
+                date = (try? URL(fileURLWithPath: path).resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+            }
+            guard let d = date else { return 0 }
+            let age = Date().timeIntervalSince(d)
+            return age < 86400 ? 80 : age < 7 * 86400 ? 50 : age < 30 * 86400 ? 25 : age < 365 * 86400 ? 5 : 0
+        }
+    }
     private var appPaths = Set<String>()
     private var pendingSelectURL: URL?
     private var userMovedSelection = false
@@ -309,6 +362,7 @@ final class FileSearchView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
         buffer = []
         rebuildBufferBar()
         spotlight.stop()
+        searchGen += 1
         debounce?.cancel()
         query = .empty
         queryText = ""
@@ -332,6 +386,7 @@ final class FileSearchView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
 
     func didHide() {
         spotlight.stop()
+        searchGen += 1
         debounce?.cancel()
         searching = false
     }
@@ -379,6 +434,7 @@ final class FileSearchView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
 
     private func runSearch() {
         spotlight.stop()
+        searchGen += 1
         searching = false
         queryText = searchField.stringValue
         query = ParsedQuery.parse(queryText)
@@ -418,21 +474,54 @@ final class FileSearchView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
         searching = true
         updateStatus()
         let rules = ExclusionRules.current
+        let ctx = scoreContext()
+        let skip = appPaths
+        let gen = searchGen
         spotlight.start(m, tokens: tokens, roots: roots, cap: cap, budget: budget) { [weak self] hits, done in
-            guard let self = self else { return }
-            self.merge(hits, rules: rules)
-            if done { self.searching = false }
-            self.rebuildResults()
+            guard let self = self, gen == self.searchGen else { return }
+            // 新增的结果在后台线程过滤、打分（3000 条约 100ms+，放在主线程会卡住输入），主线程只合并和刷新列表
+            let start = min(self.mergedHits, hits.count)
+            let fresh = Array(hits[start...])
+            self.mergedHits = hits.count
+            Self.scoreQueue.async {
+                var scored: [Candidate] = []
+                for h in fresh {
+                    if skip.contains(h.path) || rules.excludes(path: h.path) { continue }
+                    if let r = ctx.score(path: h.path) {
+                        scored.append(Candidate(path: h.path, score: r.score, ranges: r.ranges))
+                    }
+                }
+                DispatchQueue.main.async { [weak self] in
+                    guard let self = self, gen == self.searchGen else { return }
+                    for c in scored where self.candidates[c.path] == nil { self.candidates[c.path] = c }
+                    if done {
+                        self.searching = false
+                        self.applyRecency(ctx: ctx, gen: gen)
+                    }
+                    self.rebuildResults()
+                }
+            }
         }
     }
 
-    private func merge(_ hits: [FileHit], rules: ExclusionRules) {
-        guard mergedHits < hits.count else { return }
-        for h in hits[mergedHits...] {
-            if candidates[h.path] != nil || appPaths.contains(h.path) || rules.excludes(path: h.path) { continue }
-            if let c = score(path: h.path, lastUsed: h.lastUsed, modified: h.modified) { candidates[h.path] = c }
+    /// 「最近使用 / 修改」加成：只对排在前面的几十条补读时间（逐条读取很慢），读完后微调排序
+    private func applyRecency(ctx: ScoreContext, gen: Int) {
+        let n = FileSearchSettings.maxResults + 20
+        let top = candidates.values.sorted { $0.score > $1.score }.prefix(n).map(\.path)
+        guard !top.isEmpty else { return }
+        Self.scoreQueue.async {
+            var bonus: [(String, Int)] = []
+            for p in top {
+                let b = ctx.recencyBonus(path: p)
+                if b > 0 { bonus.append((p, b)) }
+            }
+            guard !bonus.isEmpty else { return }
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self, gen == self.searchGen else { return }
+                for (p, b) in bonus { self.candidates[p]?.score += b }
+                self.rebuildResults()
+            }
         }
-        mergedHits = hits.count
     }
 
     /// 不在 Spotlight 范围里、但应该能搜到的：搜索范围根目录下的条目、使用记忆里的文件
@@ -445,45 +534,25 @@ final class FileSearchView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
                 let p = (dir as NSString).appendingPathComponent(name)
                 if rules.excludes(path: p) || appPaths.contains(p) { continue }
                 if isFolderQuery && !FileSearchSettings.isDirectory(p) { continue }
-                if let c = score(path: p, lastUsed: nil, modified: nil) { candidates[p] = c }
+                if let c = score(path: p) { candidates[p] = c }
             }
         }
         guard memory else { return }
         for p in FileSearchUsage.shared.candidates(tokens: tokens)
         where candidates[p] == nil && !appPaths.contains(p) && fm.fileExists(atPath: p) && !p.contains("/.Trash/")
             && (!isFolderQuery || FileSearchSettings.isDirectory(p)) {
-            if let c = score(path: p, lastUsed: nil, modified: nil) { candidates[p] = c }
+            if let c = score(path: p) { candidates[p] = c }
         }
     }
 
-    private func score(path: String, lastUsed: Date?, modified: Date?) -> Candidate? {
-        let name = (path as NSString).lastPathComponent
-        var s: Int
-        var ranges: [NSRange] = []
-        switch query {
-        case .name(let tokens, _, _), .folders(let tokens):
-            if let m = NameMatcher.match(name, tokens: tokens, stem: (name as NSString).deletingPathExtension) {
-                s = m.score; ranges = m.ranges
-            } else {
-                s = 450
-            }
-        case .content(let tokens):
-            s = 500
-            if let m = NameMatcher.match(name, tokens: tokens) { s += 150; ranges = m.ranges }
-        case .tags:
-            s = 500
-        default:
-            return nil
-        }
-        s += FileSearchUsage.shared.boost(path: path, query: queryText)
-        if let d = lastUsed ?? (isContentQuery ? modified : nil) {
-            let age = Date().timeIntervalSince(d)
-            s += age < 86400 ? 80 : age < 7 * 86400 ? 50 : age < 30 * 86400 ? 25 : age < 365 * 86400 ? 5 : 0
-        }
-        let home = NSHomeDirectory()
-        let rel = path.hasPrefix(home) ? path.dropFirst(home.count) : Substring(path)
-        s -= min(rel.filter { $0 == "/" }.count * 3, 45)
-        return Candidate(path: path, score: s, ranges: ranges)
+    private func scoreContext() -> ScoreContext {
+        ScoreContext(query: query, queryText: queryText, usage: FileSearchUsage.shared.entries,
+                     home: NSHomeDirectory())
+    }
+
+    private func score(path: String) -> Candidate? {
+        guard let r = scoreContext().score(path: path) else { return nil }
+        return Candidate(path: path, score: r.score, ranges: r.ranges)
     }
 
     private func rebuildResults() {

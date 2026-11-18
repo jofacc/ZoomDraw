@@ -357,9 +357,12 @@ final class FileSearchUsage {
         scheduleSave()
     }
 
-    func boost(path: String, query: String) -> Int {
+    func boost(path: String, query: String) -> Int { Self.boost(entries, path: path, query: query) }
+
+    /// 纯函数版本：可在后台线程用 entries 的副本计算
+    static func boost(_ entries: [String: Entry], path: String, query: String) -> Int {
         guard let e = entries[path] else { return 0 }
-        let k = Self.key(query)
+        let k = key(query)
         var b = min(e.count, 30) * 6
         var best = 0
         for (q, c) in e.queries {
@@ -509,8 +512,6 @@ final class AppCatalog {
 
 struct FileHit {
     let path: String
-    let lastUsed: Date?
-    let modified: Date?
 }
 
 final class SpotlightRunner {
@@ -586,9 +587,8 @@ final class SpotlightRunner {
         while read < n {
             if let item = q.result(at: read) as? NSMetadataItem,
                let path = item.value(forAttribute: NSMetadataItemPathKey) as? String {
-                hits.append(FileHit(path: path,
-                                    lastUsed: item.value(forAttribute: "kMDItemLastUsedDate") as? Date,
-                                    modified: item.value(forAttribute: NSMetadataItemFSContentChangeDateKey) as? Date))
+                // 只读路径：逐条读时间属性很慢（3000 条约 2 秒），时间加成改为排序后只对前几十条补读
+                hits.append(FileHit(path: path))
             }
             read += 1
         }
